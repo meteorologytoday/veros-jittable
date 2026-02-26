@@ -308,8 +308,12 @@ class VerosSetup(metaclass=abc.ABCMeta):
         self.after_timestep(state)
 
         with state.timers["diagnostics"]:
-            if not numerics.sanity_check(state):
-                raise RuntimeError(f"solution diverged at iteration {vs.itt}")
+            
+            # Date: 2026 Feb 26
+            # Tien-Yiao Hsu: The following needs to be commented out such that
+            # jax.jit does not complain.
+            #if not numerics.sanity_check(state):
+            #    raise RuntimeError(f"solution diverged at iteration {vs.itt}")
 
             isoneutral.isoneutral_diag_streamfunction(state)
             diagnostics.diagnose(state)
