@@ -1,28 +1,31 @@
-import jax
-from veros import runtime_settings
+import pytest
+def test_jittable_veros():
 
-setattr(runtime_settings, "backend", "jax")
-setattr(runtime_settings, "force_overwrite", True)
-setattr(runtime_settings, 'linear_solver', 'scipy_jax')
-setattr(runtime_settings, 'device', 'cpu')
+    import jax
+    from veros import runtime_settings
 
-from veros.setups.acc import ACCSetup
+    setattr(runtime_settings, "backend", "jax")
+    setattr(runtime_settings, "force_overwrite", True)
+    setattr(runtime_settings, 'linear_solver', 'scipy_jax')
+    setattr(runtime_settings, 'device', 'cpu')
 
-veros_object = ACCSetup()
-veros_object.setup()
+    from veros.setups.acc import ACCSetup
 
-@jax.jit
-def step_function(state, step):
-    """
-        Convert the state function into a "pure step" copying the input state
-    """
-    n_state = state
-    veros_object.step(n_state)  # This is a function that modifies state object inplace
-    return n_state
+    veros_object = ACCSetup()
+    veros_object.setup()
 
-warmup_steps = 2
-state = veros_object.state 
+    @jax.jit
+    def step_function(state, step):
+        """
+            Convert the state function into a "pure step" copying the input state
+        """
+        n_state = state
+        veros_object.step(n_state)  # This is a function that modifies state object inplace
+        return n_state
 
-for step in range(warmup_steps):
-    state = step_function(state, step)
+    warmup_steps = 2
+    state = veros_object.state 
+
+    for step in range(warmup_steps):
+        state = step_function(state, step)
 
