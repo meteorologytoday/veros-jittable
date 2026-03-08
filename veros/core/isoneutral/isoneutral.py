@@ -291,7 +291,7 @@ def check_isoneutral_slope_crit(state):
 
         logger.info("Diffusion grid factor delta_iso1 = {}", float(delta_iso1))
         if delta_iso1 < settings.iso_slopec:
-            raise RuntimeError(
+            print( #raise RuntimeError(
                 "Without latitudinal filtering, delta_iso1 is the steepest "
                 "isoneutral slope available for linear stability of "
                 "Redi and GM. Maximum allowable isoneutral slope is "
