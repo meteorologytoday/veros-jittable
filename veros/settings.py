@@ -146,6 +146,7 @@ SETTINGS = {
     "Prandtl_tke0": Setting(
         10.0, float, "Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine"
     ),
+    "bgc_tracer_names": Setting([], list, "Names of BGC tracers to transport"),
 }
 
 
