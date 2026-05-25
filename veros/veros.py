@@ -238,7 +238,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
     @veros_routine
     def step(self, state):
         from veros import diagnostics, restart
-        from veros.core import idemix, eke, tke, momentum, thermodynamics, advection, utilities, isoneutral, numerics
+        from veros.core import idemix, eke, tke, momentum, thermodynamics, advection, utilities, isoneutral, numerics, bgc_tracers
 
         self._ensure_setup_done()
 
@@ -267,6 +267,10 @@ class VerosSetup(metaclass=abc.ABCMeta):
 
             with state.timers["thermodynamics"]:
                 thermodynamics.thermodynamics(state)
+
+            if settings.bgc_tracer_names:
+                with state.timers["bgc_tracers"]:
+                    bgc_tracers.integrate_bgc_tracers(state)
 
             if settings.enable_eke or settings.enable_tke or settings.enable_idemix:
                 with state.timers["advection"]:
