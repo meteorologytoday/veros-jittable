@@ -29,7 +29,7 @@ class ACCSetup(VerosSetup):
         settings.nx, settings.ny, settings.nz = 30, 42, 15
         settings.dt_mom = 3600
         settings.dt_tracer = 86400 / 2.0
-        settings.runlen = 86400 * 30
+        settings.runlen = 86400 * 360
 
         settings.x_origin = 0.0
         settings.y_origin = -40.0
@@ -183,13 +183,14 @@ class ACCSetup(VerosSetup):
             "surface_tauy",
             "tracer",
         )
-        diagnostics["averages"].output_frequency = 86400.0
-        diagnostics["averages"].sampling_frequency = settings.dt_tracer
-        diagnostics["overturning"].output_frequency = 86400.0
-        diagnostics["overturning"].sampling_frequency = settings.dt_tracer
-        diagnostics["tracer_monitor"].output_frequency = 86400.0
-        diagnostics["energy"].output_frequency = 86400.0
-        diagnostics["energy"].sampling_frequency = settings.dt_tracer
+        diagnostics["averages"].output_frequency = 86400.0 * 5
+        diagnostics["averages"].sampling_frequency = 86400.0
+        diagnostics["overturning"].output_frequency = 86400.0 * 5
+        diagnostics["overturning"].sampling_frequency = 86400.0
+        diagnostics["tracer_monitor"].output_frequency = 86400.0 * 5
+        diagnostics["tracer_monitor"].sampling_frequency = 86400.0
+        diagnostics["energy"].output_frequency = 86400.0 * 5
+        diagnostics["energy"].sampling_frequency = 86400.0
 
     @veros_routine
     def after_timestep(self, state):
