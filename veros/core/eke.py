@@ -45,20 +45,24 @@ def set_eke_diffusivities_kernel(state):
         calculate Rossby radius as minimum of mid-latitude and equatorial R. rad.
         """
         C_rossby = npx.sum(
-            npx.sqrt(npx.maximum(0.0, vs.Nsqr[:, :, :, vs.tau]))
+            utilities.sqrt_singularity_removed(vs.Nsqr[:, :, :, vs.tau])
             * vs.dzw[npx.newaxis, npx.newaxis, :]
             * vs.maskW[:, :, :]
             / settings.pi,
             axis=2,
         )
+        # `C_rossby` is exactly 0.0 in fully-masked (land) columns (every
+        # term in its sum carries a `maskW` factor of 0), so `sqrt` here
+        # would otherwise see exactly 0.
         vs.L_rossby = npx.minimum(
-            C_rossby / npx.maximum(npx.abs(vs.coriolis_t), 1e-16), npx.sqrt(C_rossby / npx.maximum(2 * vs.beta, 1e-16))
+            C_rossby / npx.maximum(npx.abs(vs.coriolis_t), 1e-16),
+            utilities.sqrt_singularity_removed(C_rossby / npx.maximum(2 * vs.beta, 1e-16)),
         )
 
         """
         calculate vertical viscosity and skew diffusivity
         """
-        vs.sqrteke = npx.sqrt(npx.maximum(0.0, vs.eke[:, :, :, vs.tau]))
+        vs.sqrteke = utilities.sqrt_singularity_removed(vs.eke[:, :, :, vs.tau])
         vs.L_rhines = npx.sqrt(vs.sqrteke / npx.maximum(vs.beta[..., npx.newaxis], 1e-16))
         vs.eke_len = npx.maximum(
             settings.eke_lmin,

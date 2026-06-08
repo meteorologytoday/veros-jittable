@@ -22,6 +22,34 @@ def enforce_boundaries(arr, enable_cyclic_x, local=False):
 
 
 @veros_kernel
+def sqrt_singularity_removed(x, eps=1e-12):
+    """
+    AD-safe replacement for `sqrt(maximum(0, x))`.
+
+    Two problems arise when naively differentiating through `sqrt` near zero:
+      1. `sqrt(x)` has an infinite derivative at x=0, so AD blows up to
+         inf/nan wherever x reaches exactly 0 (e.g. masked cells, zero
+         initial conditions like `tke`/`eke`).
+      2. `sqrt(maximum(0, x))` guards the primal but keeps the kink at 0,
+         causing the same inf tangent via JAX's `maximum` JVP rule
+         (which picks the sqrt branch at the tie point).
+
+    Clamping x away from the singularity with `maximum(x, eps)` (eps > 0)
+    fixes both: the denominator is at least sqrt(eps) > 0, so sqrt's
+    derivative is at most 1/(2*sqrt(eps)) -- finite; and for x < eps the
+    gradient is zero (the clamp is active), not the dangerous 0*inf product.
+
+    Note: `sqrt(x + eps)` (the Huber-shift approach) is NOT safe when x can
+    be genuinely negative (e.g. Nsqr in convectively unstable regions, or
+    tke/eke with numerical undershoot from the implicit solver). For those
+    inputs, `sqrt((x + eps))` evaluates sqrt of a negative number -- NaN in
+    both primal and tangent. `sqrt(maximum(x, eps))` is safe for any sign of
+    x: the clamp floor keeps the argument positive.
+    """
+    return npx.sqrt(npx.maximum(x, eps))
+
+
+@veros_kernel
 def pad_z_edges(array):
     """
     Pads the z-axis of an array by repeating its edge values
