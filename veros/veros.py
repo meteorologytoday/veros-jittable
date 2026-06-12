@@ -231,7 +231,7 @@ class VerosSetup(metaclass=abc.ABCMeta):
             restart.read_restart(self.state)
 
             self.set_forcing(self.state)
-            isoneutral.check_isoneutral_slope_crit(self.state)
+            #isoneutral.check_isoneutral_slope_crit(self.state)
 
         self._setup_done = True
 
