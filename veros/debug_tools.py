@@ -12,10 +12,16 @@ def detect_nan_in_state(state, header=""):
     Reporting is done via jax.debug.print, so it works whether this is called
     eagerly or while being traced (jax.jit/grad/jvp).
 
+    Controlled by the ``enable_nan_checks`` setting; a no-op (and adds nothing
+    to the traced jaxpr) when that setting is off.
+
     Arguments:
         state: VerosState instance to inspect.
         header (str): Label identifying the calling site, included in the report.
     """
+    if not state.settings.enable_nan_checks:
+        return
+
     vs = state.variables
 
     for name in vs.fields():

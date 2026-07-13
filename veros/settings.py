@@ -148,6 +148,10 @@ SETTINGS = {
     "Prandtl_tke0": Setting(
         10.0, float, "Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine"
     ),
+    # Debugging
+    "enable_nan_checks": Setting(
+        False, bool, "Scan state for NaN/Inf values at debug checkpoints sprinkled through the model (slow; see veros.debug_tools.detect_nan_in_state)"
+    ),
 }
 
 
