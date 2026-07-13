@@ -7,6 +7,7 @@ from veros.plugins import load_plugin
 from veros.routines import veros_routine, is_veros_routine
 from veros.timer import timer_context
 
+from veros.debug_tools import detect_nan_in_state
 
 class VerosSetup(metaclass=abc.ABCMeta):
     """Main class for Veros, used for building a model and running it.
@@ -249,53 +250,70 @@ class VerosSetup(metaclass=abc.ABCMeta):
             restart.write_restart(state)
 
         with state.timers["main"]:
+
+
             with state.timers["forcing"]:
                 self.set_forcing(state)
+            detect_nan_in_state(state, header="set_forcing")
 
             if state.settings.enable_idemix:
                 with state.timers["idemix"]:
                     idemix.set_idemix_parameter(state)
+            detect_nan_in_state(state, header="set_idemix_parameter")
 
             with state.timers["eke"]:
                 eke.set_eke_diffusivities(state)
+            detect_nan_in_state(state, header="set_eke_diffusivities")
 
             with state.timers["tke"]:
                 tke.set_tke_diffusivities(state)
+            detect_nan_in_state(state, header="set_tke_diffusivities")
 
             with state.timers["momentum"]:
                 momentum.momentum(state)
+            detect_nan_in_state(state, header="momentum")
 
             with state.timers["thermodynamics"]:
                 thermodynamics.thermodynamics(state)
+            detect_nan_in_state(state, header="thermodynamics")
 
             if settings.enable_eke or settings.enable_tke or settings.enable_idemix:
                 with state.timers["advection"]:
                     advection.calculate_velocity_on_wgrid(state)
+                detect_nan_in_state(state, header="calculate_velocity_on_wgrid")
 
             with state.timers["eke"]:
                 if state.settings.enable_eke:
                     eke.integrate_eke(state)
+                    detect_nan_in_state(state, header="integrate_eke")
 
             with state.timers["idemix"]:
                 if state.settings.enable_idemix:
                     idemix.integrate_idemix(state)
+                    detect_nan_in_state(state, header="integrate_idemix")
 
             with state.timers["tke"]:
                 if state.settings.enable_tke:
                     tke.integrate_tke(state)
+                    detect_nan_in_state(state, header="integrate_tke")
 
             with state.timers["boundary_exchange"]:
                 vs.u = utilities.enforce_boundaries(vs.u, settings.enable_cyclic_x)
                 vs.v = utilities.enforce_boundaries(vs.v, settings.enable_cyclic_x)
+                detect_nan_in_state(state, header="enforce_boundaries - u and v")
                 if settings.enable_tke:
                     vs.tke = utilities.enforce_boundaries(vs.tke, settings.enable_cyclic_x)
+                    detect_nan_in_state(state, header="enforce_boundaries - tke")
                 if settings.enable_eke:
                     vs.eke = utilities.enforce_boundaries(vs.eke, settings.enable_cyclic_x)
+                    detect_nan_in_state(state, header="enforce_boundaries - eke")
                 if settings.enable_idemix:
                     vs.E_iw = utilities.enforce_boundaries(vs.E_iw, settings.enable_cyclic_x)
+                    detect_nan_in_state(state, header="enforce_boundaries - idemix")
 
             with state.timers["momentum"]:
                 momentum.vertical_velocity(state)
+                detect_nan_in_state(state, header="vertical_velocity")
 
         with state.timers["plugins"]:
             for plugin in self._plugin_interfaces:
