@@ -7,6 +7,21 @@ from veros.variables import Variable
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 SCRIP_GRID_FILE = os.path.join(os.path.dirname(BASE_PATH), "DisplacedPoleGrid.SCRIP.nc")
 
+# Number of polar rows masked as land at each pole, chosen from the grid's
+# own cell aspect-ratio (max(dxt,dyt)/min(dxt,dyt)) and area (relative to the
+# grid median), not just "one row of true/near singularity":
+#   south: j=0..3   -- j=3 is the first southward row where aspect ratio
+#                       drops back under ~5.5:1 (area ~26% of median);
+#                       j=0 alone is 38:1 (~4% of median area).
+#   north: j=53..58 -- j=53 is the first northward row where aspect ratio
+#                       drops back under ~6:1 (area ~32% of median); j=57 (the
+#                       last row masked before this fix) was 18.7:1 (~8%).
+# Without this, cells this thin/small are a plausible driver of the
+# streamfunction/pressure-solver convergence failures seen around day
+# 10-30 of a run, independent of which barotropic solver is used.
+SOUTH_LAND_ROWS = 4
+NORTH_LAND_ROWS = 6
+
 
 class GlobalFourDegreeDisplacedPoleSetup(VerosSetup):
     """Curvilinear (displaced-pole) counterpart to the standard global_4deg
@@ -16,10 +31,11 @@ class GlobalFourDegreeDisplacedPoleSetup(VerosSetup):
     Scope, matching plan-extend-curvlinear.md's Phase 8 recommendation: this
     is an integration/smoke test for the curvilinear grid machinery, not a
     scientifically faithful reproduction of the regular-grid global_4deg
-    setup. Topography is an idealized aquaplanet of uniform depth, with the
-    grid's polar rows (j=0, the true south-pole singularity; j=ny-1, the row
-    nearest the displaced north pole) masked as land -- keeps the model well
-    away from the coordinate singularity without needing real bathymetry.
+    setup. Topography is an idealized aquaplanet of uniform depth, with a
+    band of rows at each pole masked as land (see SOUTH_LAND_ROWS/
+    NORTH_LAND_ROWS below) -- wide enough to also exclude the badly
+    stretched, small-area cells the grid develops near both poles, not just
+    the coordinate singularity itself. Real bathymetry is out of scope here.
     Initial conditions and forcing are likewise idealized (depth-only T/S
     profile, analytic latitude-band wind stress and heat-flux restoring,
     matching the style of the ACC setup) rather than real climatologies --
@@ -120,14 +136,13 @@ class GlobalFourDegreeDisplacedPoleSetup(VerosSetup):
         settings = state.settings
 
         # idealized aquaplanet of uniform depth (full water column, kbot=1
-        # everywhere) except the grid's two polar rows, which are masked as
-        # land to keep the model away from the coordinate singularity --
-        # j=0 sits one cell north of the true (-90 deg) south pole, j=ny-1
-        # is the row nearest the grid's displaced north pole. See this
-        # setup's docstring for why real bathymetry is out of scope here.
+        # everywhere) except a band of rows at each pole (SOUTH_LAND_ROWS,
+        # NORTH_LAND_ROWS above), masked as land -- wide enough to clear both
+        # the coordinate singularity and the badly stretched cells nearby.
+        # See this setup's docstring for why real bathymetry is out of scope.
         ocean = npx.ones_like(vs.kbot)
-        ocean = update(ocean, at[:, :3], 0)
-        ocean = update(ocean, at[:, settings.ny + 1 :], 0)
+        ocean = update(ocean, at[:, : 2 + SOUTH_LAND_ROWS], 0)
+        ocean = update(ocean, at[:, 2 + settings.ny - NORTH_LAND_ROWS :], 0)
         vs.kbot = ocean
 
     @veros_routine

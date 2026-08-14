@@ -12,7 +12,7 @@ from veros.routines import veros_kernel
 from veros.state import KernelOutput
 from veros.variables import allocate
 from veros.core import utilities as mainutils
-from veros.core.operators import update, update_add, at, for_loop
+from veros.core.operators import update, update_add, at, for_loop, cond
 from veros.core.operators import numpy as npx
 from veros.core.external.solvers import get_linear_solver
 
@@ -32,7 +32,7 @@ def solve_pressure(state):
     def update_step(psi):
         return update(psi, at[..., vs.taup1], linear_sol)
 
-    vs.psi = jax.lax.cond(
+    vs.psi = cond(
         vs.itt == 0,
         update_initial,
         update_step,
@@ -76,14 +76,14 @@ def prepare_forcing(state):
         vs.du,
         at[2:-2, 2:-2, :, vs.tau],
         -(vs.p_hydro[3:-1, 2:-2, :] - vs.p_hydro[2:-2, 2:-2, :])
-        / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxu[2:-2, npx.newaxis, npx.newaxis])
+        / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dxu[2:-2, 2:-2, npx.newaxis])
         * vs.maskU[2:-2, 2:-2, :],
     )
     vs.dv = update_add(
         vs.dv,
         at[2:-2, 2:-2, :, vs.tau],
         -(vs.p_hydro[2:-2, 3:-1, :] - vs.p_hydro[2:-2, 2:-2, :])
-        / vs.dyu[npx.newaxis, 2:-2, npx.newaxis]
+        / vs.dyu[2:-2, 2:-2, npx.newaxis]
         * vs.maskV[2:-2, 2:-2, :],
     )
 
@@ -137,8 +137,9 @@ def prepare_forcing(state):
     forc = update(
         forc,
         at[2:-2, 2:-2],
-        (uloc[2:-2, 2:-2] - uloc[1:-3, 2:-2]) / (vs.cost[2:-2] * vs.dxt[2:-2, npx.newaxis])
-        + (vs.cosu[2:-2] * vloc[2:-2, 2:-2] - vs.cosu[1:-3] * vloc[2:-2, 1:-3]) / (vs.cost[2:-2] * vs.dyt[2:-2])
+        (uloc[2:-2, 2:-2] - uloc[1:-3, 2:-2]) / (vs.cost[2:-2, 2:-2] * vs.dxt[2:-2, 2:-2])
+        + (vs.cosu[2:-2, 2:-2] * vloc[2:-2, 2:-2] - vs.cosu[2:-2, 1:-3] * vloc[2:-2, 1:-3])
+        / (vs.cost[2:-2, 2:-2] * vs.dyt[2:-2, 2:-2])
         # free surface
         - vs.psi[2:-2, 2:-2, vs.tau]
         / (settings.grav * settings.dt_mom * settings.dt_tracer)
@@ -164,7 +165,7 @@ def barotropic_velocity_update(state):
         at[2:-2, 2:-2, :, vs.taup1],
         -settings.dt_mom
         * (vs.psi[3:-1, 2:-2, vs.taup1, npx.newaxis] - vs.psi[2:-2, 2:-2, vs.taup1, npx.newaxis])
-        / (vs.dxu[2:-2, npx.newaxis, npx.newaxis] * vs.cost[2:-2, npx.newaxis])
+        / (vs.dxu[2:-2, 2:-2, npx.newaxis] * vs.cost[2:-2, 2:-2, npx.newaxis])
         * vs.maskU[2:-2, 2:-2, :],
     )
 
@@ -173,7 +174,7 @@ def barotropic_velocity_update(state):
         at[2:-2, 2:-2, :, vs.taup1],
         -settings.dt_mom
         * (vs.psi[2:-2, 3:-1, vs.taup1, npx.newaxis] - vs.psi[2:-2, 2:-2, vs.taup1, npx.newaxis])
-        / vs.dyu[npx.newaxis, 2:-2, npx.newaxis]
+        / vs.dyu[2:-2, 2:-2, npx.newaxis]
         * vs.maskV[2:-2, 2:-2, :],
     )
 

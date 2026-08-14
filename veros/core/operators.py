@@ -84,6 +84,12 @@ def fori_numpy(lower, upper, body_fun, init_val):
     return val
 
 
+def cond_numpy(pred, true_fun, false_fun, operand):
+    if pred:
+        return true_fun(operand)
+    return false_fun(operand)
+
+
 def scan_numpy(f, init, xs, length=None):
     import numpy as np
 
@@ -189,6 +195,7 @@ if runtime_settings.backend == "numpy":
     solve_tridiagonal = solve_tridiagonal_numpy
     for_loop = fori_numpy
     scan = scan_numpy
+    cond = cond_numpy
     flush = noop
 
 elif runtime_settings.backend == "jax":
@@ -201,6 +208,7 @@ elif runtime_settings.backend == "jax":
     solve_tridiagonal = solve_tridiagonal_jax
     for_loop = jax.lax.fori_loop
     scan = jax.lax.scan
+    cond = jax.lax.cond
     flush = flush_jax
 
 else:

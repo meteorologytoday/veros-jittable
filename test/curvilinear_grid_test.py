@@ -198,6 +198,6 @@ def test_displaced_pole_smoke_run():
 
     assert -5.0 <= float(vs.temp.min()) and float(vs.temp.max()) <= 40.0
     assert 0.0 <= float(vs.salt.min()) and float(vs.salt.max()) <= 45.0
-    # both polar rows plus their ghost neighbours are land, everything else ocean
+    # SOUTH_LAND_ROWS + NORTH_LAND_ROWS out of ny=59 rows are land
     ocean_frac = float((npx.asarray(vs.kbot)[2:-2, 2:-2] > 0).mean())
-    assert 0.9 < ocean_frac < 1.0
+    assert 0.75 < ocean_frac < 0.9
