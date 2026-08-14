@@ -27,19 +27,19 @@ def solver_state(cyclic, problem):
     vs = state.variables
 
     with vs.unlock():
-        vs.dxt = 10e3 * np.ones(settings.nx + 4)
-        vs.dxu = 10e3 * np.ones(settings.nx + 4)
+        vs.dxt = 10e3 * np.ones((settings.nx + 4, settings.ny + 4))
+        vs.dxu = 10e3 * np.ones((settings.nx + 4, settings.ny + 4))
 
-        vs.dyt = 10e3 * np.ones(settings.ny + 4)
-        vs.dyu = 10e3 * np.ones(settings.ny + 4)
+        vs.dyt = 10e3 * np.ones((settings.nx + 4, settings.ny + 4))
+        vs.dyu = 10e3 * np.ones((settings.nx + 4, settings.ny + 4))
 
         vs.hur = 1.0 / np.linspace(500, 2000, settings.nx + 4)[:, None] * np.ones((settings.nx + 4, settings.ny + 4))
         vs.hvr = 1.0 / np.linspace(500, 2000, settings.ny + 4)[None, :] * np.ones((settings.nx + 4, settings.ny + 4))
         vs.hu = 1.0 / vs.hur
         vs.hv = 1.0 / vs.hvr
 
-        vs.cosu = np.ones(settings.ny + 4)
-        vs.cost = np.ones(settings.ny + 4)
+        vs.cosu = np.ones((settings.nx + 4, settings.ny + 4))
+        vs.cost = np.ones((settings.nx + 4, settings.ny + 4))
 
         boundary_mask = np.ones((settings.nx + 4, settings.ny + 4), dtype="bool")
         boundary_mask[:100, :2] = 0

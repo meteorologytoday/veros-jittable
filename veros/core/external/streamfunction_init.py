@@ -104,7 +104,7 @@ def island_integrals(state):
         at[1:, 1:, :],
         -(vs.psin[1:, 1:, :] - vs.psin[1:, :-1, :])
         * vs.maskU[1:, 1:, -1, npx.newaxis]
-        / vs.dyt[npx.newaxis, 1:, npx.newaxis]
+        / vs.dyt[1:, 1:, npx.newaxis]
         * vs.hur[1:, 1:, npx.newaxis],
     )
 
@@ -113,7 +113,7 @@ def island_integrals(state):
         at[1:, 1:, ...],
         (vs.psin[1:, 1:, :] - vs.psin[:-1, 1:, :])
         * vs.maskV[1:, 1:, -1, npx.newaxis]
-        / (vs.cosu[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis])
+        / (vs.cosu[1:, 1:, npx.newaxis] * vs.dxt[1:, 1:, npx.newaxis])
         * vs.hvr[1:, 1:, npx.newaxis],
     )
 

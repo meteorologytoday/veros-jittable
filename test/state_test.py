@@ -121,12 +121,13 @@ def test_resize_dimension(dummy_state):
     dummy_state.initialize_variables()
 
     assert dummy_state.dimensions["xt"] == 10
-    assert dummy_state.variables.dxt.shape == (14,)
+    # dxt is T_HOR-shaped (xt, yt), not just xt -- ny defaults to 0 (+4 ghosts)
+    assert dummy_state.variables.dxt.shape == (14, 4)
 
     resize_dimension(dummy_state, "xt", 100)
 
     assert dummy_state.dimensions["xt"] == 100
-    assert dummy_state.variables.dxt.shape == (104,)
+    assert dummy_state.variables.dxt.shape == (104, 4)
 
 
 def test_timers(dummy_state):

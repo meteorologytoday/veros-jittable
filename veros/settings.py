@@ -28,6 +28,13 @@ SETTINGS = {
     "AB_eps": Setting(0.1, float, "Deviation from Adam-Bashforth weighting"),
     "x_origin": Setting(0, float, "Grid origin in x-direction"),
     "y_origin": Setting(0, float, "Grid origin in y-direction"),
+    # Curvilinear grid
+    "enable_curvilinear_grid": Setting(
+        False, bool, "use a locally-orthogonal curvilinear horizontal grid loaded from a SCRIP file, instead of the regular lat-lon/cartesian grid"
+    ),
+    "scrip_grid_file": Setting(
+        None, optional(str), "Path to a SCRIP grid file describing the horizontal grid. Only used if enable_curvilinear_grid is True."
+    ),
     # Physical constants
     "pi": Setting(PI, float, "Pi"),
     "radius": Setting(6370e3, float, "Earth radius in m"),

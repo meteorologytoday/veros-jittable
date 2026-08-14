@@ -145,7 +145,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
 
         vs.dyt = update(
             vs.dyt,
-            at[2:-2],
+            at[:, 2:-2],
             veros.tools.get_vinokur_grid_steps(
                 settings.ny, 160.0, eq_spacing, upper_stepsize=polar_spacing, two_sided_grid=True
             ),
@@ -156,9 +156,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
     def set_coriolis(self, state):
         vs = state.variables
         settings = state.settings
-        vs.coriolis_t = update(
-            vs.coriolis_t, at[...], 2 * settings.omega * npx.sin(vs.yt[npx.newaxis, :] / 180.0 * settings.pi)
-        )
+        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * settings.omega * npx.sin(vs.yt / 180.0 * settings.pi))
 
     def _shift_longitude_array(self, vs, lon, arr):
         wrap_i = npx.where((lon[:-1] < vs.xt.min()) & (lon[1:] >= vs.xt.min()))[0][0]
@@ -182,7 +180,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         topo_z_smoothed = npx.where(topo_z >= -1, 0, topo_z_smoothed)
 
         topo_x_shifted, topo_z_shifted = self._shift_longitude_array(vs, topo_x, topo_z_smoothed)
-        coords = (vs.xt[2:-2], vs.yt[2:-2])
+        coords = (vs.xt[2:-2, 0], vs.yt[0, 2:-2])
         z_interp = allocate(state.dimensions, ("xt", "yt"), local=False)
         z_interp = update(
             z_interp,
@@ -212,7 +210,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         efold1_shortwave = 0.35
         efold2_shortwave = 23.0
 
-        t_grid = (vs.xt[2:-2], vs.yt[2:-2], vs.zt)
+        t_grid = (vs.xt[2:-2, 0], vs.yt[0, 2:-2], vs.zt)
         xt_forc, yt_forc, zt_forc = (self._get_data(k) for k in ("xt", "yt", "zt"))
         zt_forc = zt_forc[::-1]
 
@@ -246,7 +244,7 @@ class GlobalFlexibleResolutionSetup(VerosSetup):
         vs.salt = update(vs.salt, at[2:-2, 2:-2, :, :], (salt_data * vs.maskT[2:-2, 2:-2, :])[..., npx.newaxis])
 
         # wind stress on MIT grid
-        time_grid = (vs.xt[2:-2], vs.yt[2:-2], npx.arange(12))
+        time_grid = (vs.xt[2:-2, 0], vs.yt[0, 2:-2], npx.arange(12))
         taux_raw = self._get_data("tau_x", idx=data_subset)
         taux_data = veros.tools.interpolate((xt_forc, yt_forc, npx.arange(12)), taux_raw, time_grid)
         vs.taux = update(vs.taux, at[2:-2, 2:-2, :], taux_data)

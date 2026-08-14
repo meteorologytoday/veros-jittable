@@ -34,20 +34,20 @@ def line_integrals(state, uloc, vloc, kind="same"):
         jp1 = slice(3, -1)
 
     east = (
-        vloc[i, j, :] * vs.dyu[npx.newaxis, j, npx.newaxis]
-        + uloc[i, jp1, :] * vs.dxu[i, npx.newaxis, npx.newaxis] * vs.cost[npx.newaxis, jp1, npx.newaxis]
+        vloc[i, j, :] * vs.dyu[i, j, npx.newaxis]
+        + uloc[i, jp1, :] * vs.dxu[i, jp1, npx.newaxis] * vs.cost[i, jp1, npx.newaxis]
     )
     west = (
-        -vloc[ip1, j, :] * vs.dyu[npx.newaxis, j, npx.newaxis]
-        - uloc[i, j, :] * vs.dxu[i, npx.newaxis, npx.newaxis] * vs.cost[npx.newaxis, j, npx.newaxis]
+        -vloc[ip1, j, :] * vs.dyu[ip1, j, npx.newaxis]
+        - uloc[i, j, :] * vs.dxu[i, j, npx.newaxis] * vs.cost[i, j, npx.newaxis]
     )
     north = (
-        vloc[i, j, :] * vs.dyu[npx.newaxis, j, npx.newaxis]
-        - uloc[i, j, :] * vs.dxu[i, npx.newaxis, npx.newaxis] * vs.cost[npx.newaxis, j, npx.newaxis]
+        vloc[i, j, :] * vs.dyu[i, j, npx.newaxis]
+        - uloc[i, j, :] * vs.dxu[i, j, npx.newaxis] * vs.cost[i, j, npx.newaxis]
     )
     south = (
-        -vloc[ip1, j, :] * vs.dyu[npx.newaxis, j, npx.newaxis]
-        + uloc[i, jp1, :] * vs.dxu[i, npx.newaxis, npx.newaxis] * vs.cost[npx.newaxis, jp1, npx.newaxis]
+        -vloc[ip1, j, :] * vs.dyu[ip1, j, npx.newaxis]
+        + uloc[i, jp1, :] * vs.dxu[i, jp1, npx.newaxis] * vs.cost[i, jp1, npx.newaxis]
     )
 
     if kind == "same":

@@ -58,6 +58,14 @@ def initialize_file(state, ncfile, extra_dimensions=None, create_time_dimension=
     if extra_dimensions is not None:
         dimensions.update(extra_dimensions)
 
+    # Two passes: register every netCDF dimension first, then create variables.
+    # A dimension-namesake variable's own dims tuple can span more than one of
+    # these dimensions (e.g. xt/yt are both T_HOR-shaped on a curvilinear
+    # grid), so every dimension it needs must already exist in ncfile before
+    # that variable is created -- and dimsize itself is just the dimension's
+    # own global size (dimensions[dim]), not something derived from any one
+    # variable's full multi-dimensional shape.
+    dim_vars = []
     for dim in dimensions:
         # time steps are peeled off explicitly
         if dim in variables.TIMESTEPS:
@@ -76,8 +84,10 @@ def initialize_file(state, ncfile, extra_dimensions=None, create_time_dimension=
             var = variables.Variable(dim, (dim,), time_dependent=False)
             var_data = np.arange(dimensions[dim])
 
-        dimsize = variables.get_shape(dimensions, var.dims[::-1], include_ghosts=False, local=False)[0]
-        ncfile.dimensions[dim] = dimsize
+        ncfile.dimensions[dim] = dimensions[dim]
+        dim_vars.append((dim, var, var_data))
+
+    for dim, var, var_data in dim_vars:
         initialize_variable(state, dim, var, ncfile)
         write_variable(state, dim, var, var_data, ncfile)
 

@@ -27,9 +27,9 @@ def advect_tracer(state, tr):
         vs.maskT[2:-2, 2:-2, :]
         * (
             -(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-            / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+            / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dxt[2:-2, 2:-2, npx.newaxis])
             - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-            / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+            / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dyt[2:-2, 2:-2, npx.newaxis])
         ),
     )
     dtr = update_add(dtr, at[:, :, 0], -1 * vs.maskT[:, :, 0] * flux_top[:, :, 0] / vs.dzt[0])
@@ -135,9 +135,9 @@ def advect_temp_salt_enthalpy(state):
             vs.maskT[2:-2, 2:-2, :]
             * (
                 -(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+                / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dxt[2:-2, 2:-2, npx.newaxis])
                 - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+                / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dyt[2:-2, 2:-2, npx.newaxis])
             ),
         )
         vs.dHd = update_add(vs.dHd, at[:, :, 0, vs.tau], -1 * vs.maskT[:, :, 0] * flux_top[:, :, 0] / vs.dzt[0])

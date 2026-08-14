@@ -66,14 +66,14 @@ def isoneutral_diffusion_pre(state):
         at[:-1, :, :],
         vs.maskU[:-1, :, :]
         * (vs.temp[1:, :, :, vs.tau] - vs.temp[:-1, :, :, vs.tau])
-        / (vs.dxu[:-1, npx.newaxis, npx.newaxis] * vs.cost[npx.newaxis, :, npx.newaxis]),
+        / (vs.dxu[:-1, :, npx.newaxis] * vs.cost[:-1, :, npx.newaxis]),
     )
     dSdx = update(
         dSdx,
         at[:-1, :, :],
         vs.maskU[:-1, :, :]
         * (vs.salt[1:, :, :, vs.tau] - vs.salt[:-1, :, :, vs.tau])
-        / (vs.dxu[:-1, npx.newaxis, npx.newaxis] * vs.cost[npx.newaxis, :, npx.newaxis]),
+        / (vs.dxu[:-1, :, npx.newaxis] * vs.cost[:-1, :, npx.newaxis]),
     )
 
     """
@@ -84,14 +84,14 @@ def isoneutral_diffusion_pre(state):
         at[:, :-1, :],
         vs.maskV[:, :-1, :]
         * (vs.temp[:, 1:, :, vs.tau] - vs.temp[:, :-1, :, vs.tau])
-        / vs.dyu[npx.newaxis, :-1, npx.newaxis],
+        / vs.dyu[:, :-1, npx.newaxis],
     )
     dSdy = update(
         dSdy,
         at[:, :-1, :],
         vs.maskV[:, :-1, :]
         * (vs.salt[:, 1:, :, vs.tau] - vs.salt[:, :-1, :, vs.tau])
-        / vs.dyu[npx.newaxis, :-1, npx.newaxis],
+        / vs.dyu[:, :-1, npx.newaxis],
     )
 
     """
@@ -189,7 +189,7 @@ def isoneutral_diffusion_pre(state):
             taper = dm_taper(sxb, settings.iso_slopec, settings.iso_dslope)
             sumx = (
                 sumx
-                + vs.dxu[1 + ip : -3 + ip, npx.newaxis, npx.newaxis]
+                + vs.dxu[1 + ip : -3 + ip, 2:-2, npx.newaxis]
                 * vs.K_iso[2:-2, 2:-2, :-1]
                 * taper
                 * sxb**2
@@ -199,7 +199,7 @@ def isoneutral_diffusion_pre(state):
 
         # northward slopes at the top of T cells
         for jp in range(2):
-            facty = vs.cosu[1 + jp : -3 + jp] * vs.dyu[1 + jp : -3 + jp]
+            facty = vs.cosu[2:-2, 1 + jp : -3 + jp] * vs.dyu[2:-2, 1 + jp : -3 + jp]
             drodyb = (
                 drdT[2:-2, 2:-2, kr : -1 + kr or None] * dTdy[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None]
                 + drdS[2:-2, 2:-2, kr : -1 + kr or None] * dSdy[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None]
@@ -208,7 +208,7 @@ def isoneutral_diffusion_pre(state):
             taper = dm_taper(syb, settings.iso_slopec, settings.iso_dslope)
             sumy = (
                 sumy
-                + facty[npx.newaxis, :, npx.newaxis]
+                + facty[:, :, npx.newaxis]
                 * vs.K_iso[2:-2, 2:-2, :-1]
                 * taper
                 * syb**2
@@ -219,8 +219,8 @@ def isoneutral_diffusion_pre(state):
     vs.K_33 = update(
         vs.K_33,
         at[2:-2, 2:-2, :-1],
-        sumx / (4 * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
-        + sumy / (4 * vs.dyt[npx.newaxis, 2:-2, npx.newaxis] * vs.cost[npx.newaxis, 2:-2, npx.newaxis]),
+        sumx / (4 * vs.dxt[2:-2, 2:-2, npx.newaxis])
+        + sumy / (4 * vs.dyt[2:-2, 2:-2, npx.newaxis] * vs.cost[2:-2, 2:-2, npx.newaxis]),
     )
     vs.K_33 = update(vs.K_33, at[..., -1], 0.0)
 
@@ -281,13 +281,15 @@ def check_isoneutral_slope_crit(state):
     if settings.enable_neutral_diffusion:
         ft1 = 1.0 / (4.0 * settings.K_iso_0 * settings.dt_tracer + epsln)
         delta1a = npx.min(
-            vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-            * npx.abs(vs.cost[npx.newaxis, 2:-2, npx.newaxis])
+            vs.dxt[2:-2, 2:-2, npx.newaxis]
+            * npx.abs(vs.cost[2:-2, 2:-2, npx.newaxis])
             * vs.dzt[npx.newaxis, npx.newaxis, :]
             * ft1
         )
-        delta1b = npx.min(vs.dyt[npx.newaxis, 2:-2, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :] * ft1)
-        delta_iso1 = min(vs.dzt[0] * ft1 * vs.dxt[-1] * abs(vs.cost[-1]), min(delta1a, delta1b))
+        delta1b = npx.min(vs.dyt[2:-2, 2:-2, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :] * ft1)
+        # dxt/cost redundant along the "other" axis on this (legacy, non-curvilinear) grid,
+        # so any single j/i index reproduces the original 1D scalar value
+        delta_iso1 = min(vs.dzt[0] * ft1 * vs.dxt[-1, -1] * abs(vs.cost[-1, -1]), min(delta1a, delta1b))
 
         logger.info("Diffusion grid factor delta_iso1 = {}", float(delta_iso1))
         if delta_iso1 < settings.iso_slopec:

@@ -22,12 +22,12 @@ def tend_coriolisf(state):
         * (
             vs.coriolis_t[2:-2, 2:-2, npx.newaxis]
             * (vs.v[2:-2, 2:-2, :, vs.tau] + vs.v[2:-2, 1:-3, :, vs.tau])
-            * vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-            / vs.dxu[2:-2, npx.newaxis, npx.newaxis]
+            * vs.dxt[2:-2, 2:-2, npx.newaxis]
+            / vs.dxu[2:-2, 2:-2, npx.newaxis]
             + vs.coriolis_t[3:-1, 2:-2, npx.newaxis]
             * (vs.v[3:-1, 2:-2, :, vs.tau] + vs.v[3:-1, 1:-3, :, vs.tau])
-            * vs.dxt[3:-1, npx.newaxis, npx.newaxis]
-            / vs.dxu[2:-2, npx.newaxis, npx.newaxis]
+            * vs.dxt[3:-1, 2:-2, npx.newaxis]
+            / vs.dxu[2:-2, 2:-2, npx.newaxis]
         ),
     )
     vs.dv_cor = update(
@@ -38,36 +38,50 @@ def tend_coriolisf(state):
         * (
             vs.coriolis_t[2:-2, 2:-2, npx.newaxis]
             * (vs.u[1:-3, 2:-2, :, vs.tau] + vs.u[2:-2, 2:-2, :, vs.tau])
-            * vs.dyt[npx.newaxis, 2:-2, npx.newaxis]
-            * vs.cost[npx.newaxis, 2:-2, npx.newaxis]
-            / (vs.dyu[npx.newaxis, 2:-2, npx.newaxis] * vs.cosu[npx.newaxis, 2:-2, npx.newaxis])
+            * vs.dyt[2:-2, 2:-2, npx.newaxis]
+            * vs.cost[2:-2, 2:-2, npx.newaxis]
+            / (vs.dyu[2:-2, 2:-2, npx.newaxis] * vs.cosu[2:-2, 2:-2, npx.newaxis])
             + vs.coriolis_t[2:-2, 3:-1, npx.newaxis]
             * (vs.u[1:-3, 3:-1, :, vs.tau] + vs.u[2:-2, 3:-1, :, vs.tau])
-            * vs.dyt[npx.newaxis, 3:-1, npx.newaxis]
-            * vs.cost[npx.newaxis, 3:-1, npx.newaxis]
-            / (vs.dyu[npx.newaxis, 2:-2, npx.newaxis] * vs.cosu[npx.newaxis, 2:-2, npx.newaxis])
+            * vs.dyt[2:-2, 3:-1, npx.newaxis]
+            * vs.cost[2:-2, 3:-1, npx.newaxis]
+            / (vs.dyu[2:-2, 2:-2, npx.newaxis] * vs.cosu[2:-2, 2:-2, npx.newaxis])
         ),
     )
 
     """
     time tendency due to metric terms
+
+    tantr = tan(lat)/R is only valid on a regular lat-lon grid -- on a
+    curvilinear grid it would need to be replaced by the general
+    orthogonal-curvilinear form of this term (a function of local scale
+    factors and their gradients, reducing to tan(lat)/R exactly in the
+    lat-lon limit). Deriving that is deliberately out of scope here -- see
+    plan-extend-curvlinear.md's Phase 6 -- and is a separate, dedicated
+    follow-on task. Rather than run a formula known to be wrong off a
+    regular grid, this block is skipped entirely when
+    enable_curvilinear_grid=True (see the startup warning emitted in
+    veros.core.numerics.calc_grid_scrip). The legacy path
+    (enable_curvilinear_grid=False) is completely unaffected: this stays
+    exactly the same code, under exactly the same coord_degree condition, as
+    before.
     """
-    if settings.coord_degree:
+    if settings.coord_degree and not settings.enable_curvilinear_grid:
         vs.du_cor = update_add(
             vs.du_cor,
             at[2:-2, 2:-2],
             vs.maskU[2:-2, 2:-2]
             * 0.125
-            * vs.tantr[npx.newaxis, 2:-2, npx.newaxis]
+            * vs.tantr[2:-2, 2:-2, npx.newaxis]
             * (
                 (vs.u[2:-2, 2:-2, :, vs.tau] + vs.u[1:-3, 2:-2, :, vs.tau])
                 * (vs.v[2:-2, 2:-2, :, vs.tau] + vs.v[2:-2, 1:-3, :, vs.tau])
-                * vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-                / vs.dxu[2:-2, npx.newaxis, npx.newaxis]
+                * vs.dxt[2:-2, 2:-2, npx.newaxis]
+                / vs.dxu[2:-2, 2:-2, npx.newaxis]
                 + (vs.u[3:-1, 2:-2, :, vs.tau] + vs.u[2:-2, 2:-2, :, vs.tau])
                 * (vs.v[3:-1, 2:-2, :, vs.tau] + vs.v[3:-1, 1:-3, :, vs.tau])
-                * vs.dxt[3:-1, npx.newaxis, npx.newaxis]
-                / vs.dxu[2:-2, npx.newaxis, npx.newaxis]
+                * vs.dxt[3:-1, 2:-2, npx.newaxis]
+                / vs.dxu[2:-2, 2:-2, npx.newaxis]
             ),
         )
         vs.dv_cor = update_add(
@@ -77,16 +91,16 @@ def tend_coriolisf(state):
             * vs.maskV[2:-2, 2:-2]
             * 0.125
             * (
-                vs.tantr[npx.newaxis, 2:-2, npx.newaxis]
+                vs.tantr[2:-2, 2:-2, npx.newaxis]
                 * (vs.u[2:-2, 2:-2, :, vs.tau] + vs.u[1:-3, 2:-2, :, vs.tau]) ** 2
-                * vs.dyt[npx.newaxis, 2:-2, npx.newaxis]
-                * vs.cost[npx.newaxis, 2:-2, npx.newaxis]
-                / (vs.dyu[npx.newaxis, 2:-2, npx.newaxis] * vs.cosu[npx.newaxis, 2:-2, npx.newaxis])
-                + vs.tantr[npx.newaxis, 3:-1, npx.newaxis]
+                * vs.dyt[2:-2, 2:-2, npx.newaxis]
+                * vs.cost[2:-2, 2:-2, npx.newaxis]
+                / (vs.dyu[2:-2, 2:-2, npx.newaxis] * vs.cosu[2:-2, 2:-2, npx.newaxis])
+                + vs.tantr[2:-2, 3:-1, npx.newaxis]
                 * (vs.u[2:-2, 3:-1, :, vs.tau] + vs.u[1:-3, 3:-1, :, vs.tau]) ** 2
-                * vs.dyt[npx.newaxis, 3:-1, npx.newaxis]
-                * vs.cost[npx.newaxis, 3:-1, npx.newaxis]
-                / (vs.dyu[npx.newaxis, 2:-2, npx.newaxis] * vs.cosu[npx.newaxis, 2:-2, npx.newaxis])
+                * vs.dyt[2:-2, 3:-1, npx.newaxis]
+                * vs.cost[2:-2, 3:-1, npx.newaxis]
+                / (vs.dyu[2:-2, 2:-2, npx.newaxis] * vs.cosu[2:-2, 2:-2, npx.newaxis])
             ),
         )
 
@@ -141,11 +155,11 @@ def momentum_advection(state):
     Code from MITgcm
     """
 
-    utr = vs.u[..., vs.tau] * vs.maskU * vs.dyt[npx.newaxis, :, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :]
+    utr = vs.u[..., vs.tau] * vs.maskU * vs.dyt[:, :, npx.newaxis] * vs.dzt[npx.newaxis, npx.newaxis, :]
     vtr = (
         vs.dzt[npx.newaxis, npx.newaxis, :]
-        * vs.cosu[npx.newaxis, :, npx.newaxis]
-        * vs.dxt[:, npx.newaxis, npx.newaxis]
+        * vs.cosu[:, :, npx.newaxis]
+        * vs.dxt[:, :, npx.newaxis]
         * vs.v[..., vs.tau]
         * vs.maskV
     )
@@ -255,12 +269,12 @@ def vertical_velocity_kernel(state):
         * vs.dzt[0]
         * (
             (vs.u[1:, 1:, 0, vs.taup1] - vs.u[:-1, 1:, 0, vs.taup1])
-            / (vs.cost[npx.newaxis, 1:] * vs.dxt[1:, npx.newaxis])
+            / (vs.cost[1:, 1:] * vs.dxt[1:, 1:])
             + (
-                vs.cosu[npx.newaxis, 1:] * vs.v[1:, 1:, 0, vs.taup1]
-                - vs.cosu[npx.newaxis, :-1] * vs.v[1:, :-1, 0, vs.taup1]
+                vs.cosu[1:, 1:] * vs.v[1:, 1:, 0, vs.taup1]
+                - vs.cosu[1:, :-1] * vs.v[1:, :-1, 0, vs.taup1]
             )
-            / (vs.cost[npx.newaxis, 1:] * vs.dyt[npx.newaxis, 1:])
+            / (vs.cost[1:, 1:] * vs.dyt[1:, 1:])
         ),
     )
 
@@ -272,12 +286,12 @@ def vertical_velocity_kernel(state):
         * vs.dzt[npx.newaxis, npx.newaxis, 1:]
         * (
             (vs.u[1:, 1:, 1:, vs.taup1] - vs.u[:-1, 1:, 1:, vs.taup1])
-            / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis])
+            / (vs.cost[1:, 1:, npx.newaxis] * vs.dxt[1:, 1:, npx.newaxis])
             + (
-                vs.cosu[npx.newaxis, 1:, npx.newaxis] * vs.v[1:, 1:, 1:, vs.taup1]
-                - vs.cosu[npx.newaxis, :-1, npx.newaxis] * vs.v[1:, :-1, 1:, vs.taup1]
+                vs.cosu[1:, 1:, npx.newaxis] * vs.v[1:, 1:, 1:, vs.taup1]
+                - vs.cosu[1:, :-1, npx.newaxis] * vs.v[1:, :-1, 1:, vs.taup1]
             )
-            / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dyt[npx.newaxis, 1:, npx.newaxis])
+            / (vs.cost[1:, 1:, npx.newaxis] * vs.dyt[1:, 1:, npx.newaxis])
         ),
     )
 

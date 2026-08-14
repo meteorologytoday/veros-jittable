@@ -97,8 +97,8 @@ class Overturning(VerosDiagnostic):
             npx.cumsum(
                 zonal_sum(
                     npx.sum(
-                        vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-                        * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
+                        vs.dxt[2:-2, 2:-2, npx.newaxis]
+                        * vs.cosu[2:-2, 2:-2, npx.newaxis]
                         * vs.maskV[2:-2, 2:-2, :],
                         axis=0,
                     )
@@ -175,8 +175,8 @@ def diagnose_kernel(state, ovt_vs, p_ref):
     z_sig = allocate(state.dimensions, ("yu", nlevel))
 
     fac = (
-        vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-        * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
+        vs.dxt[2:-2, 2:-2, npx.newaxis]
+        * vs.cosu[2:-2, 2:-2, npx.newaxis]
         * vs.dzt[npx.newaxis, npx.newaxis, :]
         * vs.maskV[2:-2, 2:-2, :]
     )
@@ -206,15 +206,15 @@ def diagnose_kernel(state, ovt_vs, p_ref):
                 npx.sum(
                     npx.sum(
                         (vs.B1_gm[2:-2, 2:-2, 1:] - vs.B1_gm[2:-2, 2:-2, :-1])
-                        * vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-                        * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
+                        * vs.dxt[2:-2, 2:-2, npx.newaxis]
+                        * vs.cosu[2:-2, 2:-2, npx.newaxis]
                         * vs.maskV[2:-2, 2:-2, 1:]
                         * mask[:, :, 1:],
                         axis=2,
                     )
                     + vs.B1_gm[2:-2, 2:-2, 0]
-                    * vs.dxt[2:-2, npx.newaxis]
-                    * vs.cosu[npx.newaxis, 2:-2]
+                    * vs.dxt[2:-2, 2:-2]
+                    * vs.cosu[2:-2, 2:-2]
                     * vs.maskV[2:-2, 2:-2, 0]
                     * mask[:, :, 0],
                     axis=0,
@@ -232,8 +232,8 @@ def diagnose_kernel(state, ovt_vs, p_ref):
         npx.cumsum(
             zonal_sum(
                 npx.sum(
-                    vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-                    * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
+                    vs.dxt[2:-2, 2:-2, npx.newaxis]
+                    * vs.cosu[2:-2, 2:-2, npx.newaxis]
                     * vs.v[2:-2, 2:-2, :, vs.tau]
                     * vs.maskV[2:-2, 2:-2, :],
                     axis=0,
@@ -251,8 +251,8 @@ def diagnose_kernel(state, ovt_vs, p_ref):
             at[2:-2, :],
             zonal_sum(
                 npx.sum(
-                    vs.dxt[2:-2, npx.newaxis, npx.newaxis]
-                    * vs.cosu[npx.newaxis, 2:-2, npx.newaxis]
+                    vs.dxt[2:-2, 2:-2, npx.newaxis]
+                    * vs.cosu[2:-2, 2:-2, npx.newaxis]
                     * vs.B1_gm[2:-2, 2:-2, :],
                     axis=0,
                 )

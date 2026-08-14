@@ -111,16 +111,14 @@ class NorthAtlanticSetup(VerosSetup):
         settings = state.settings
 
         vs.dxt = update(vs.dxt, at[2:-2], (self.x_boundary - settings.x_origin) / settings.nx)
-        vs.dyt = update(vs.dyt, at[2:-2], (self.y_boundary - settings.y_origin) / settings.ny)
+        vs.dyt = update(vs.dyt, at[:, 2:-2], (self.y_boundary - settings.y_origin) / settings.ny)
         vs.dzt = veros.tools.get_vinokur_grid_steps(settings.nz, self.max_depth, 10.0, refine_towards="lower")
 
     @veros_routine
     def set_coriolis(self, state):
         vs = state.variables
         settings = state.settings
-        vs.coriolis_t = update(
-            vs.coriolis_t, at[...], 2 * settings.omega * npx.sin(vs.yt[npx.newaxis, :] / 180.0 * settings.pi)
-        )
+        vs.coriolis_t = update(vs.coriolis_t, at[...], 2 * settings.omega * npx.sin(vs.yt / 180.0 * settings.pi))
 
     @veros_routine(dist_safe=False, local_variables=["kbot", "xt", "yt", "zt"])
     def set_topography(self, state):
@@ -137,8 +135,10 @@ class NorthAtlanticSetup(VerosSetup):
         topo_bottom_depth = scipy.ndimage.gaussian_filter(
             topo_bottom_depth, sigma=(len(topo_x) / settings.nx, len(topo_y) / settings.ny)
         )
-        interp_coords = npx.meshgrid(vs.xt[2:-2], vs.yt[2:-2], indexing="ij")
-        interp_coords = npx.rollaxis(npx.asarray(interp_coords), 0, 3)
+        # xt/yt are already full 2D grids (redundant along the "other" axis on
+        # this regular grid), so no meshgrid is needed -- just stack them into
+        # the (..., ndim) point format scipy.interpolate.interpn expects.
+        interp_coords = npx.stack([vs.xt[2:-2, 2:-2], vs.yt[2:-2, 2:-2]], axis=-1)
         z_interp = scipy.interpolate.interpn(
             (onp.array(topo_x), onp.array(topo_y)),
             topo_bottom_depth,
@@ -188,8 +188,8 @@ class NorthAtlanticSetup(VerosSetup):
         vs = state.variables
 
         with h5netcdf.File(DATA_FILES["forcing"], "r") as forcing_file:
-            t_hor = (vs.xt[2:-2], vs.yt[2:-2])
-            t_grid = (vs.xt[2:-2], vs.yt[2:-2], vs.zt)
+            t_hor = (vs.xt[2:-2, 0], vs.yt[0, 2:-2])
+            t_grid = (vs.xt[2:-2, 0], vs.yt[0, 2:-2], vs.zt)
 
             forc_coords = [self._get_data(forcing_file, k) for k in ("xt", "yt", "zt")]
             forc_coords[0] = forc_coords[0] - 360

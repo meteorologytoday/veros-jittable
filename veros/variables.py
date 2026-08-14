@@ -197,13 +197,25 @@ VARIABLES = {
     ),
     "itt": Variable("Current iteration", None, "", "Current iteration", dtype="int32", initial=0),
     # base variables
-    "dxt": Variable("Zonal T-grid spacing", XT, "m", "Zonal (x) spacing of T-grid point", time_dependent=False),
-    "dxu": Variable("Zonal U-grid spacing", XU, "m", "Zonal (x) spacing of U-grid point", time_dependent=False),
+    "dxt": Variable(
+        "Zonal T-grid spacing", T_HOR, "m", "Local grid spacing of T-grid point in the i-direction", time_dependent=False
+    ),
+    "dxu": Variable(
+        "Zonal U-grid spacing", U_HOR, "m", "Local grid spacing of U-grid point in the i-direction", time_dependent=False
+    ),
     "dyt": Variable(
-        "Meridional T-grid spacing", YT, "m", "Meridional (y) spacing of T-grid point", time_dependent=False
+        "Meridional T-grid spacing",
+        T_HOR,
+        "m",
+        "Local grid spacing of T-grid point in the j-direction",
+        time_dependent=False,
     ),
     "dyu": Variable(
-        "Meridional U-grid spacing", YU, "m", "Meridional (y) spacing of U-grid point", time_dependent=False
+        "Meridional U-grid spacing",
+        V_HOR,
+        "m",
+        "Local grid spacing of V-grid point in the j-direction",
+        time_dependent=False,
     ),
     "zt": Variable(
         "Vertical coordinate (T)",
@@ -223,9 +235,15 @@ VARIABLES = {
     ),
     "dzt": Variable("Vertical spacing (T)", ZT, "m", "Vertical spacing", time_dependent=False),
     "dzw": Variable("Vertical spacing (W)", ZW, "m", "Vertical spacing", time_dependent=False),
-    "cost": Variable("Metric factor (T)", YT, "1", "Metric factor for spherical coordinates", time_dependent=False),
-    "cosu": Variable("Metric factor (U)", YU, "1", "Metric factor for spherical coordinates", time_dependent=False),
-    "tantr": Variable("Metric factor", YT, "1", "Metric factor for spherical coordinates", time_dependent=False),
+    "cost": Variable(
+        "Metric factor (T)", T_HOR, "1", "Metric factor for spherical coordinates, at T-grid point", time_dependent=False
+    ),
+    "cosu": Variable(
+        "Metric factor (V)", V_HOR, "1", "Metric factor for spherical coordinates, at V-grid point", time_dependent=False
+    ),
+    "tantr": Variable(
+        "Metric factor", T_HOR, "1", "Metric factor for spherical coordinates, at T-grid point", time_dependent=False
+    ),
     "coriolis_t": Variable(
         "Coriolis frequency", T_HOR, "1/s", "Coriolis frequency at T grid point", time_dependent=False
     ),
@@ -590,33 +608,33 @@ VARIABLES = {
     "w_wgrid": Variable("W on W grid", W_GRID, "m/s", "Vertical velocity interpolated to W grid points"),
     "xt": Variable(
         "Zonal coordinate (T)",
-        XT,
+        T_HOR,
         lambda settings: "degrees_east" if settings.coord_degree else "km",
-        "Zonal (x) coordinate of T-grid point",
+        "Local i-direction coordinate of T-grid point (longitude if curvilinear/spherical, x-position if cartesian)",
         time_dependent=False,
         scale=lambda settings: 1 if settings.coord_degree else 1e-3,
     ),
     "xu": Variable(
         "Zonal coordinate (U)",
-        XU,
+        U_HOR,
         lambda settings: "degrees_east" if settings.coord_degree else "km",
-        "Zonal (x) coordinate of U-grid point",
+        "Local i-direction coordinate of U-grid point (longitude if curvilinear/spherical, x-position if cartesian)",
         time_dependent=False,
         scale=lambda settings: 1 if settings.coord_degree else 1e-3,
     ),
     "yt": Variable(
         "Meridional coordinate (T)",
-        YT,
+        T_HOR,
         lambda settings: "degrees_north" if settings.coord_degree else "km",
-        "Meridional (y) coordinate of T-grid point",
+        "Local j-direction coordinate of T-grid point (latitude if curvilinear/spherical, y-position if cartesian)",
         time_dependent=False,
         scale=lambda settings: 1 if settings.coord_degree else 1e-3,
     ),
     "yu": Variable(
-        "Meridional coordinate (U)",
-        YU,
+        "Meridional coordinate (V)",
+        V_HOR,
         lambda settings: "degrees_north" if settings.coord_degree else "km",
-        "Meridional (y) coordinate of U-grid point",
+        "Local j-direction coordinate of V-grid point (latitude if curvilinear/spherical, y-position if cartesian)",
         time_dependent=False,
         scale=lambda settings: 1 if settings.coord_degree else 1e-3,
     ),

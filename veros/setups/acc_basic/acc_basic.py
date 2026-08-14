@@ -92,14 +92,12 @@ class ACCBasicSetup(VerosSetup):
     def set_coriolis(self, state):
         vs = state.variables
         settings = state.settings
-        vs.coriolis_t = update(
-            vs.coriolis_t, at[:, :], 2 * settings.omega * npx.sin(vs.yt[None, :] / 180.0 * settings.pi)
-        )
+        vs.coriolis_t = update(vs.coriolis_t, at[:, :], 2 * settings.omega * npx.sin(vs.yt / 180.0 * settings.pi))
 
     @veros_routine
     def set_topography(self, state):
         vs = state.variables
-        x, y = npx.meshgrid(vs.xt, vs.yt, indexing="ij")
+        x, y = vs.xt, vs.yt
         vs.kbot = npx.logical_or(x > 1.0, y < -20).astype("int")
 
     @veros_routine
@@ -123,9 +121,12 @@ class ACCBasicSetup(VerosSetup):
         vs.surface_taux = taux * vs.maskU[:, :, -1]
 
         # surface heatflux forcing
+        # t_star is a deliberately zonally-symmetric (1D, y-only) restoring profile;
+        # yt_1d is any single i-row of vs.yt (all identical on this regular grid)
+        yt_1d = vs.yt[0, :]
         vs.t_star = allocate(state.dimensions, ("yt",), fill=15)
-        vs.t_star = npx.where(vs.yt < -20, 15 * (vs.yt - yt_min) / (-20 - yt_min), vs.t_star)
-        vs.t_star = npx.where(vs.yt > 20, 15 * (1 - (vs.yt - 20) / (yt_max - 20)), vs.t_star)
+        vs.t_star = npx.where(yt_1d < -20, 15 * (yt_1d - yt_min) / (-20 - yt_min), vs.t_star)
+        vs.t_star = npx.where(yt_1d > 20, 15 * (1 - (yt_1d - 20) / (yt_max - 20)), vs.t_star)
         vs.t_rest = vs.dzt[npx.newaxis, -1] / (30.0 * 86400.0) * vs.maskT[:, :, -1]
 
         if settings.enable_tke:

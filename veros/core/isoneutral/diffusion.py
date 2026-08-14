@@ -42,7 +42,7 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
         at[1:-2, 2:-2, :],
         sumz / (4.0 * vs.dzt[npx.newaxis, npx.newaxis, :])
         + (tr[2:-1, 2:-2, :, vs.tau] - tr[1:-2, 2:-2, :, vs.tau])
-        / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxu[1:-2, npx.newaxis, npx.newaxis])
+        / (vs.cost[1:-2, 2:-2, npx.newaxis] * vs.dxu[1:-2, 2:-2, npx.newaxis])
         * vs.K_11[1:-2, 2:-2, :],
     )
 
@@ -67,11 +67,11 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
     flux_north = update(
         flux_north,
         at[2:-2, 1:-2, :],
-        vs.cosu[npx.newaxis, 1:-2, npx.newaxis]
+        vs.cosu[2:-2, 1:-2, npx.newaxis]
         * (
             sumz / (4.0 * vs.dzt[npx.newaxis, npx.newaxis, :])
             + (tr[2:-2, 2:-1, :, vs.tau] - tr[2:-2, 1:-2, :, vs.tau])
-            / vs.dyu[npx.newaxis, 1:-2, npx.newaxis]
+            / vs.dyu[2:-2, 1:-2, npx.newaxis]
             * vs.K_22[2:-2, 1:-2, :]
         ),
     )
@@ -87,7 +87,7 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
 
     for ip in range(2):
         for kr in range(2):
-            sumx = sumx + diffloc * vs.Ai_bx[2:-2, 2:-2, :-1, ip, kr] / vs.cost[npx.newaxis, 2:-2, npx.newaxis] * (
+            sumx = sumx + diffloc * vs.Ai_bx[2:-2, 2:-2, :-1, ip, kr] / vs.cost[2:-2, 2:-2, npx.newaxis] * (
                 tr[2 + ip : -2 + ip, 2:-2, kr : -1 + kr or None, vs.tau]
                 - tr[1 + ip : -3 + ip, 2:-2, kr : -1 + kr or None, vs.tau]
             )
@@ -96,7 +96,7 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
     for jp in range(2):
         for kr in range(2):
             sumy = sumy + diffloc * vs.Ai_by[2:-2, 2:-2, :-1, jp, kr] * vs.cosu[
-                npx.newaxis, 1 + jp : -3 + jp, npx.newaxis
+                2:-2, 1 + jp : -3 + jp, npx.newaxis
             ] * (
                 tr[2:-2, 2 + jp : -2 + jp, kr : -1 + kr or None, vs.tau]
                 - tr[2:-2, 1 + jp : -3 + jp, kr : -1 + kr or None, vs.tau]
@@ -105,8 +105,8 @@ def _calc_tracer_fluxes(state, tr, K_iso, K_skew):
     flux_top = update(
         flux_top,
         at[2:-2, 2:-2, :-1],
-        sumx / (4 * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
-        + sumy / (4 * vs.dyt[npx.newaxis, 2:-2, npx.newaxis] * vs.cost[npx.newaxis, 2:-2, npx.newaxis]),
+        sumx / (4 * vs.dxt[2:-2, 2:-2, npx.newaxis])
+        + sumy / (4 * vs.dyt[2:-2, 2:-2, npx.newaxis] * vs.cost[2:-2, 2:-2, npx.newaxis]),
     )
     flux_top = update(flux_top, at[:, :, -1], 0.0)
 
@@ -124,9 +124,9 @@ def _calc_explicit_part(state, flux_east, flux_north, flux_top):
         vs.maskT[2:-2, 2:-2, :]
         * (
             (flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-            / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+            / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dxt[2:-2, 2:-2, npx.newaxis])
             + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-            / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+            / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dyt[2:-2, 2:-2, npx.newaxis])
         ),
     )
     explicit_part = update_add(explicit_part, at[:, :, 0], vs.maskT[:, :, 0] * flux_top[:, :, 0] / vs.dzt[0])

@@ -172,7 +172,7 @@ def integrate_eke_kernel(state):
         0.5
         * npx.maximum(500.0, vs.K_gm[:-1, :, :] + vs.K_gm[1:, :, :])
         * (vs.eke[1:, :, :, vs.tau] - vs.eke[:-1, :, :, vs.tau])
-        / (vs.cost[npx.newaxis, :, npx.newaxis] * vs.dxu[:-1, npx.newaxis, npx.newaxis])
+        / (vs.cost[:-1, :, npx.newaxis] * vs.dxu[:-1, :, npx.newaxis])
         * vs.maskU[:-1, :, :],
     )
     flux_east = update(flux_east, at[-1, :, :], 0.0)
@@ -182,9 +182,9 @@ def integrate_eke_kernel(state):
         0.5
         * npx.maximum(500.0, vs.K_gm[:, :-1, :] + vs.K_gm[:, 1:, :])
         * (vs.eke[:, 1:, :, vs.tau] - vs.eke[:, :-1, :, vs.tau])
-        / vs.dyu[npx.newaxis, :-1, npx.newaxis]
+        / vs.dyu[:, :-1, npx.newaxis]
         * vs.maskV[:, :-1, :]
-        * vs.cosu[npx.newaxis, :-1, npx.newaxis],
+        * vs.cosu[:, :-1, npx.newaxis],
     )
     flux_north = update(flux_north, at[:, -1, :], 0.0)
     vs.eke = update_add(
@@ -194,9 +194,9 @@ def integrate_eke_kernel(state):
         * vs.maskW[2:-2, 2:-2, :]
         * (
             (flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-            / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+            / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dxt[2:-2, 2:-2, npx.newaxis])
             + (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-            / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+            / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dyt[2:-2, 2:-2, npx.newaxis])
         ),
     )
 
@@ -216,9 +216,9 @@ def integrate_eke_kernel(state):
             vs.maskW[2:-2, 2:-2, :]
             * (
                 -(flux_east[2:-2, 2:-2, :] - flux_east[1:-3, 2:-2, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+                / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dxt[2:-2, 2:-2, npx.newaxis])
                 - (flux_north[2:-2, 2:-2, :] - flux_north[2:-2, 1:-3, :])
-                / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dyt[npx.newaxis, 2:-2, npx.newaxis])
+                / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dyt[2:-2, 2:-2, npx.newaxis])
             ),
         )
         vs.deke = update_add(vs.deke, at[:, :, 0, vs.tau], -flux_top[:, :, 0] / vs.dzw[0])

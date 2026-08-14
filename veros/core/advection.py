@@ -25,10 +25,10 @@ def _adv_superbee(state, vel, var, mask, dx, axis):
 
     if axis == 0:
         sm1, s, sp1, sp2 = ((slice(1 + n, -2 + n or None), slice(2, -2), slice(None)) for n in range(-1, 3))
-        dx = vs.cost[npx.newaxis, 2:-2, npx.newaxis] * dx[1:-2, npx.newaxis, npx.newaxis]
+        dx = vs.cost[1:-2, 2:-2, npx.newaxis] * dx[1:-2, 2:-2, npx.newaxis]
     elif axis == 1:
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(1 + n, -2 + n or None), slice(None)) for n in range(-1, 3))
-        dx = (vs.cost * dx)[npx.newaxis, 1:-2, npx.newaxis]
+        dx = (vs.cost[2:-2, 1:-2] * dx[2:-2, 1:-2])[:, :, npx.newaxis]
     elif axis == 2:
         sm1, s, sp1, sp2 = ((slice(2, -2), slice(2, -2), slice(1 + n, -2 + n or None)) for n in range(-1, 3))
         dx = dx[npx.newaxis, npx.newaxis, :-1]
@@ -42,7 +42,7 @@ def _adv_superbee(state, vel, var, mask, dx, axis):
     cr = limiter(_calc_cr(rjp, rj, rjm, vel[s]))
 
     if axis == 1:
-        vel = vel * vs.cosu[npx.newaxis, :, npx.newaxis]
+        vel = vel * vs.cosu[:, :, npx.newaxis]
 
     uCFL = npx.abs(vel[s] * settings.dt_tracer / dx)
     return vel[s] * (var[sp1] + var[s]) * 0.5 - npx.abs(vel[s]) * ((1.0 - cr) + uCFL * cr) * rj * 0.5
@@ -67,7 +67,7 @@ def adv_flux_2nd(state, var):
     adv_fn = update(
         adv_fn,
         at[2:-2, 1:-2, :],
-        vs.cosu[npx.newaxis, 1:-2, npx.newaxis]
+        vs.cosu[2:-2, 1:-2, npx.newaxis]
         * 0.5
         * (var[2:-2, 1:-2, :] + var[2:-2, 2:-1, :])
         * vs.v[2:-2, 1:-2, :, vs.tau]
@@ -203,12 +203,12 @@ def calculate_velocity_on_wgrid_kernel(state):
             -vs.dzw[npx.newaxis, npx.newaxis, :]
             * (
                 (vs.u_wgrid[1:, 1:, :] - vs.u_wgrid[:-1, 1:, :])
-                / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dxt[1:, npx.newaxis, npx.newaxis])
+                / (vs.cost[1:, 1:, npx.newaxis] * vs.dxt[1:, 1:, npx.newaxis])
                 + (
-                    vs.cosu[npx.newaxis, 1:, npx.newaxis] * vs.v_wgrid[1:, 1:, :]
-                    - vs.cosu[npx.newaxis, :-1, npx.newaxis] * vs.v_wgrid[1:, :-1, :]
+                    vs.cosu[1:, 1:, npx.newaxis] * vs.v_wgrid[1:, 1:, :]
+                    - vs.cosu[1:, :-1, npx.newaxis] * vs.v_wgrid[1:, :-1, :]
                 )
-                / (vs.cost[npx.newaxis, 1:, npx.newaxis] * vs.dyt[npx.newaxis, 1:, npx.newaxis])
+                / (vs.cost[1:, 1:, npx.newaxis] * vs.dyt[1:, 1:, npx.newaxis])
             ),
             axis=2,
         ),
@@ -269,11 +269,11 @@ def adv_flux_upwind_wgrid(state, var):
     adv_fn = update(
         adv_fn,
         at[2:-2, 1:-2, :],
-        vs.cosu[npx.newaxis, 1:-2, npx.newaxis]
+        vs.cosu[2:-2, 1:-2, npx.newaxis]
         * vs.v_wgrid[2:-2, 1:-2, :]
         * (var[2:-2, 2:-1, :] + var[2:-2, 1:-2, :])
         * 0.5
-        - npx.abs(vs.cosu[npx.newaxis, 1:-2, npx.newaxis] * vs.v_wgrid[2:-2, 1:-2, :]) * rj * 0.5,
+        - npx.abs(vs.cosu[2:-2, 1:-2, npx.newaxis] * vs.v_wgrid[2:-2, 1:-2, :]) * rj * 0.5,
     )
 
     maskWtr = vs.maskW[2:-2, 2:-2, 1:] * vs.maskW[2:-2, 2:-2, :-1]

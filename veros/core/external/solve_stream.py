@@ -65,14 +65,14 @@ def prepare_forcing(state):
         vs.du,
         at[2:-2, 2:-2, :, vs.tau],
         -(vs.p_hydro[3:-1, 2:-2, :] - vs.p_hydro[2:-2, 2:-2, :])
-        / (vs.cost[npx.newaxis, 2:-2, npx.newaxis] * vs.dxu[2:-2, npx.newaxis, npx.newaxis])
+        / (vs.cost[2:-2, 2:-2, npx.newaxis] * vs.dxu[2:-2, 2:-2, npx.newaxis])
         * vs.maskU[2:-2, 2:-2, :],
     )
     vs.dv = update_add(
         vs.dv,
         at[2:-2, 2:-2, :, vs.tau],
         -(vs.p_hydro[2:-2, 3:-1, :] - vs.p_hydro[2:-2, 2:-2, :])
-        / vs.dyu[npx.newaxis, 2:-2, npx.newaxis]
+        / vs.dyu[2:-2, 2:-2, npx.newaxis]
         * vs.maskV[2:-2, 2:-2, :],
     )
 
@@ -87,8 +87,9 @@ def prepare_forcing(state):
     forc = update(
         forc,
         at[2:-2, 2:-2],
-        (vloc[3:-1, 2:-2] - vloc[2:-2, 2:-2]) / (vs.cosu[2:-2] * vs.dxu[2:-2, npx.newaxis])
-        - (vs.cost[3:-1] * uloc[2:-2, 3:-1] - vs.cost[2:-2] * uloc[2:-2, 2:-2]) / (vs.cosu[2:-2] * vs.dyu[2:-2]),
+        (vloc[3:-1, 2:-2] - vloc[2:-2, 2:-2]) / (vs.cosu[2:-2, 2:-2] * vs.dxu[2:-2, 2:-2])
+        - (vs.cost[2:-2, 3:-1] * uloc[2:-2, 3:-1] - vs.cost[2:-2, 2:-2] * uloc[2:-2, 2:-2])
+        / (vs.cosu[2:-2, 2:-2] * vs.dyu[2:-2, 2:-2]),
     )
 
     # solve for interior streamfunction
@@ -130,7 +131,7 @@ def barotropic_velocity_update(state, uloc, vloc):
             -1
             * vs.maskU[1:, 1:, -1]
             * (vs.dpsi[1:, 1:, vs.taup1] - vs.dpsi[1:, :-1, vs.taup1])
-            / vs.dyt[npx.newaxis, 1:]
+            / vs.dyt[1:, 1:]
             * vs.hur[1:, 1:],
         )
         vloc = update(
@@ -138,7 +139,7 @@ def barotropic_velocity_update(state, uloc, vloc):
             at[1:, 1:],
             vs.maskV[1:, 1:, -1]
             * (vs.dpsi[1:, 1:, vs.taup1] - vs.dpsi[:-1, 1:, vs.taup1])
-            / (vs.cosu[npx.newaxis, 1:] * vs.dxt[1:, npx.newaxis])
+            / (vs.cosu[1:, 1:] * vs.dxt[1:, 1:])
             * vs.hvr[1:, 1:],
         )
         line_forc = update_add(
@@ -208,7 +209,7 @@ def barotropic_velocity_update(state, uloc, vloc):
         -1
         * vs.maskU[2:-2, 2:-2, :]
         * (vs.psi[2:-2, 2:-2, vs.taup1, npx.newaxis] - vs.psi[2:-2, 1:-3, vs.taup1, npx.newaxis])
-        / vs.dyt[npx.newaxis, 2:-2, npx.newaxis]
+        / vs.dyt[2:-2, 2:-2, npx.newaxis]
         * vs.hur[2:-2, 2:-2, npx.newaxis],
     )
     vs.v = update_add(
@@ -216,7 +217,7 @@ def barotropic_velocity_update(state, uloc, vloc):
         at[2:-2, 2:-2, :, vs.taup1],
         vs.maskV[2:-2, 2:-2, :]
         * (vs.psi[2:-2, 2:-2, vs.taup1, npx.newaxis] - vs.psi[1:-3, 2:-2, vs.taup1, npx.newaxis])
-        / (vs.cosu[2:-2, npx.newaxis] * vs.dxt[2:-2, npx.newaxis, npx.newaxis])
+        / (vs.cosu[2:-2, 2:-2, npx.newaxis] * vs.dxt[2:-2, 2:-2, npx.newaxis])
         * vs.hvr[2:-2, 2:-2][:, :, npx.newaxis],
     )
 

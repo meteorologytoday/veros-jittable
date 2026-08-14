@@ -1,4 +1,4 @@
-from veros import veros_kernel, veros_routine, KernelOutput
+from veros import veros_kernel, veros_routine, KernelOutput, logger
 from veros.variables import allocate
 from veros.distributed import global_and
 from veros.core import density, diffusion, utilities
@@ -24,56 +24,91 @@ def u_centered_grid(dyt, dyu, yt, yu):
 
 @veros_kernel
 def calc_grid_spacings_kernel(state):
+    """
+    xt/yt/xu/yu/dxt/dyt/dxu/dyu are now 2D (T_HOR/U_HOR/V_HOR-shaped), to
+    accommodate a curvilinear grid where neither coordinate is separable.
+    On this (legacy, analytic) grid path, every VerosSetup.set_grid()
+    implementation still only ever broadcasts a scalar or an i-only/j-only
+    profile into dxt/dyt (never a genuinely 2D pattern), so dxt is constant
+    along j and dyt is constant along i. That lets the whole grid-spacing
+    construction be done on 1D i- and j-profiles exactly as before (reusing
+    u_centered_grid unchanged), then broadcast into the 2D arrays at the end
+    -- which reproduces today's values exactly, by construction, and also
+    reproduces the implicit outer-product structure that calc_grid_metrics_kernel's
+    area formulas rely on below.
+    """
     vs = state.variables
     settings = state.settings
 
-    if settings.enable_cyclic_x:
-        vs.dxt = update(vs.dxt, at[-2:], vs.dxt[2:4])
-        vs.dxt = update(vs.dxt, at[:2], vs.dxt[-4:-2])
-    else:
-        vs.dxt = update(vs.dxt, at[-2:], vs.dxt[-3])
-        vs.dxt = update(vs.dxt, at[:2], vs.dxt[2])
+    dxt_1d = vs.dxt[:, 0]
+    dyt_1d = vs.dyt[0, :]
 
-    vs.dyt = update(vs.dyt, at[-2:], vs.dyt[-3])
-    vs.dyt = update(vs.dyt, at[:2], vs.dyt[2])
+    if settings.enable_cyclic_x:
+        dxt_1d = update(dxt_1d, at[-2:], dxt_1d[2:4])
+        dxt_1d = update(dxt_1d, at[:2], dxt_1d[-4:-2])
+    else:
+        dxt_1d = update(dxt_1d, at[-2:], dxt_1d[-3])
+        dxt_1d = update(dxt_1d, at[:2], dxt_1d[2])
+
+    dyt_1d = update(dyt_1d, at[-2:], dyt_1d[-3])
+    dyt_1d = update(dyt_1d, at[:2], dyt_1d[2])
 
     """
     grid in east/west direction
     """
-    vs.dxu, vs.xt, vs.xu = u_centered_grid(vs.dxt, vs.dxu, vs.xt, vs.xu)
-    vs.xt = vs.xt + settings.x_origin - vs.xu[2]
-    vs.xu = vs.xu + settings.x_origin - vs.xu[2]
+    dxu_1d, xt_1d, xu_1d = u_centered_grid(
+        dxt_1d, npx.zeros_like(dxt_1d), npx.zeros_like(dxt_1d), npx.zeros_like(dxt_1d)
+    )
+    xt_1d = xt_1d + settings.x_origin - xu_1d[2]
+    xu_1d = xu_1d + settings.x_origin - xu_1d[2]
 
     if settings.enable_cyclic_x:
-        vs.xt = update(vs.xt, at[-2:], vs.xt[2:4])
-        vs.xt = update(vs.xt, at[:2], vs.xt[-4:-2])
-        vs.xu = update(vs.xu, at[-2:], vs.xt[2:4])
-        vs.xu = update(vs.xu, at[:2], vs.xu[-4:-2])
-        vs.dxu = update(vs.dxu, at[-2:], vs.dxu[2:4])
-        vs.dxu = update(vs.dxu, at[:2], vs.dxu[-4:-2])
+        xt_1d = update(xt_1d, at[-2:], xt_1d[2:4])
+        xt_1d = update(xt_1d, at[:2], xt_1d[-4:-2])
+        xu_1d = update(xu_1d, at[-2:], xt_1d[2:4])
+        xu_1d = update(xu_1d, at[:2], xu_1d[-4:-2])
+        dxu_1d = update(dxu_1d, at[-2:], dxu_1d[2:4])
+        dxu_1d = update(dxu_1d, at[:2], dxu_1d[-4:-2])
 
     """
     grid in north/south direction
     """
-    vs.dyu, vs.yt, vs.yu = u_centered_grid(vs.dyt, vs.dyu, vs.yt, vs.yu)
-    vs.yt = vs.yt + settings.y_origin - vs.yu[2]
-    vs.yu = vs.yu + settings.y_origin - vs.yu[2]
+    dyu_1d, yt_1d, yu_1d = u_centered_grid(
+        dyt_1d, npx.zeros_like(dyt_1d), npx.zeros_like(dyt_1d), npx.zeros_like(dyt_1d)
+    )
+    yt_1d = yt_1d + settings.y_origin - yu_1d[2]
+    yu_1d = yu_1d + settings.y_origin - yu_1d[2]
 
     if settings.coord_degree:
         """
         convert from degrees to pseudo cartesian grid
         """
-        vs.dxt = vs.dxt * settings.degtom
-        vs.dxu = vs.dxu * settings.degtom
-        vs.dyt = vs.dyt * settings.degtom
-        vs.dyu = vs.dyu * settings.degtom
+        dxt_1d = dxt_1d * settings.degtom
+        dxu_1d = dxu_1d * settings.degtom
+        dyt_1d = dyt_1d * settings.degtom
+        dyu_1d = dyu_1d * settings.degtom
+
+    """
+    broadcast the 1D i-/j-profiles into the 2D T_HOR/U_HOR/V_HOR arrays --
+    dxt/xt/yt are T-point quantities (constant along j for xt-things, along i
+    for yt-things), dxu/xu are U-point (indexed by xu, constant along yt),
+    dyu/yu are V-point (indexed by yu, constant along xt)
+    """
+    vs.dxt = dxt_1d[:, npx.newaxis] * npx.ones_like(vs.dxt)
+    vs.dyt = dyt_1d[npx.newaxis, :] * npx.ones_like(vs.dyt)
+    vs.xt = xt_1d[:, npx.newaxis] * npx.ones_like(vs.xt)
+    vs.yt = yt_1d[npx.newaxis, :] * npx.ones_like(vs.yt)
+
+    vs.dxu = dxu_1d[:, npx.newaxis] * npx.ones_like(vs.dxu)
+    vs.xu = xu_1d[:, npx.newaxis] * npx.ones_like(vs.xu)
+
+    vs.dyu = dyu_1d[npx.newaxis, :] * npx.ones_like(vs.dyu)
+    vs.yu = yu_1d[npx.newaxis, :] * npx.ones_like(vs.yu)
 
     """
     grid in vertical direction
     """
-    vs.dzw, vs.zt, vs.zw = u_centered_grid(vs.dzt, vs.dzw, vs.zt, vs.zw)
-    vs.zt = vs.zt - vs.zw[-1]
-    vs.zw = vs.zw - vs.zw[-1]  # enforce 0 boundary height
+    vs.dzw, vs.zt, vs.zw = calc_vertical_grid(vs.dzt, vs.dzw, vs.zt, vs.zw)
 
     return KernelOutput(
         dxt=vs.dxt,
@@ -90,8 +125,23 @@ def calc_grid_spacings_kernel(state):
     )
 
 
+@veros_kernel
+def calc_vertical_grid(dzt, dzw, zt, zw):
+    """
+    Vertical grid construction (dzt -> dzw/zt/zw). Independent of the
+    horizontal grid, so both the legacy analytic path
+    (calc_grid_spacings_kernel) and the curvilinear path (calc_grid_scrip)
+    call this the same way.
+    """
+    dzw, zt, zw = u_centered_grid(dzt, dzw, zt, zw)
+    zt = zt - zw[-1]
+    zw = zw - zw[-1]  # enforce 0 boundary height
+    return dzw, zt, zw
+
+
 @veros_routine(
-    # all inputs are 1D, so doing this on the main process should be fine
+    # grid metadata is cheap to (re)compute redundantly, so doing this on the
+    # main process is fine even though these arrays are now 2D
     dist_safe=False,
     local_variables=(
         "dxt",
@@ -132,10 +182,16 @@ def calc_grid_metrics_kernel(state):
 
     """
     precalculate area of boxes
+
+    dxt/dxu/dyt/dyu/cost/cosu are now all already 2D (T_HOR/U_HOR/V_HOR), so
+    these are plain elementwise products, no newaxis broadcast needed -- on
+    the legacy grid this reproduces the original 1D outer-product formulas
+    exactly, since dxt/dxu vary only along i and dyt/dyu/cost/cosu only along
+    j (see calc_grid_spacings_kernel).
     """
-    vs.area_t = update(vs.area_t, at[...], vs.cost * vs.dyt * vs.dxt[:, npx.newaxis])
-    vs.area_u = update(vs.area_u, at[...], vs.cost * vs.dyt * vs.dxu[:, npx.newaxis])
-    vs.area_v = update(vs.area_v, at[...], vs.cosu * vs.dyu * vs.dxt[:, npx.newaxis])
+    vs.area_t = update(vs.area_t, at[...], vs.cost * vs.dyt * vs.dxt)
+    vs.area_u = update(vs.area_u, at[...], vs.cost * vs.dyt * vs.dxu)
+    vs.area_v = update(vs.area_v, at[...], vs.cosu * vs.dyu * vs.dxt)
 
     return KernelOutput(
         cost=vs.cost,
@@ -147,11 +203,151 @@ def calc_grid_metrics_kernel(state):
     )
 
 
+@veros_routine(
+    # SCRIP file I/O and mesh derivation are plain numpy/xarray, not
+    # jax-traceable -- do them on the main process, like calc_grid_spacings
+    dist_safe=False,
+    local_variables=(
+        "xt",
+        "xu",
+        "yt",
+        "yu",
+        "dxt",
+        "dxu",
+        "dyt",
+        "dyu",
+        "cost",
+        "cosu",
+        "area_t",
+        "area_u",
+        "area_v",
+        "dzt",
+        "dzw",
+        "zt",
+        "zw",
+    ),
+)
+def calc_grid_scrip(state):
+    """
+    Populate the horizontal grid from a SCRIP file (settings.scrip_grid_file)
+    describing a locally-orthogonal curvilinear grid. Curvilinear counterpart
+    to calc_grid_spacings + calc_grid_metrics_kernel; see calc_grid for the
+    settings.enable_curvilinear_grid dispatch between the two paths.
+
+    Does not compute tantr: nothing on the curvilinear path consumes it (the
+    momentum equation's tan(lat)/R metric term is only valid for a regular
+    lat-lon grid, and its general orthogonal-curvilinear replacement is an
+    explicitly separate, not-yet-done follow-on task -- see
+    veros/core/momentum.py::tend_coriolisf). tantr is left at its allocation
+    default, unused.
+    """
+    import numpy as onp
+
+    from veros.tools.scrip import read_scrip_grid
+
+    vs = state.variables
+    settings = state.settings
+
+    if settings.scrip_grid_file is None:
+        raise RuntimeError("settings.enable_curvilinear_grid=True requires settings.scrip_grid_file to be set")
+
+    logger.warning(
+        "enable_curvilinear_grid is True: the momentum equation's grid-curvature "
+        "metric term (tan(lat)/R) is only valid on a regular lat-lon grid and is "
+        "disabled on this curvilinear run (see veros/core/momentum.py::tend_coriolisf). "
+        "This is a known, documented limitation of the current curvilinear grid support, "
+        "not a bug -- the general orthogonal-curvilinear replacement is a separate follow-on task."
+    )
+
+    grid = read_scrip_grid(settings.scrip_grid_file, radius=settings.radius)
+    nx, ny = grid.shape
+    if (nx, ny) != (settings.nx, settings.ny):
+        raise ValueError(
+            f"SCRIP grid file {settings.scrip_grid_file!r} describes a ({nx}, {ny}) grid, "
+            f"but settings.nx, settings.ny = ({settings.nx}, {settings.ny})"
+        )
+
+    def pad(interior):
+        """
+        Pad a (nx, ny) array with the same 4-ghost-cell, enable_cyclic_x
+        convention as calc_grid_spacings_kernel: wrap around in i if cyclic,
+        else repeat the edge value in i; always repeat the edge value in j
+        (Veros has no cyclic-y notion).
+        """
+        padded = onp.empty((nx + 4, ny + 4), dtype=interior.dtype)
+        padded[2:-2, 2:-2] = interior
+        if settings.enable_cyclic_x:
+            padded[-2:, 2:-2] = interior[:2, :]
+            padded[:2, 2:-2] = interior[-2:, :]
+        else:
+            padded[-2:, 2:-2] = interior[-1:, :]
+            padded[:2, 2:-2] = interior[:1, :]
+        padded[:, -2:] = padded[:, -3:-2]
+        padded[:, :2] = padded[:, 2:3]
+        return padded
+
+    vs.xt = pad(grid.xt)
+    vs.yt = pad(grid.yt)
+    vs.xu = pad(grid.xu)
+    vs.yu = pad(grid.yu)
+    vs.dxt = pad(grid.dxt)
+    vs.dyt = pad(grid.dyt)
+    vs.dxu = pad(grid.dxu)
+    vs.dyu = pad(grid.dyu)
+
+    # cost/cosu exist on the legacy path to convert degtom-scaled *degrees*
+    # into true physical arc length; dxt/dyt/dxu/dyu here are already true
+    # great-circle arc lengths (see veros/tools/scrip.py), so no separate
+    # cos(lat) correction applies -- matches the generalized
+    # orthogonal-coordinate convention (Griffies; MOM4/POP), where cell area
+    # is simply h1*h2*dx1*dx2 with no extra trigonometric factor.
+    vs.cost = onp.ones((nx + 4, ny + 4))
+    vs.cosu = onp.ones((nx + 4, ny + 4))
+
+    # area_t: use the SCRIP file's own precise spherical-polygon cell area
+    # rather than the dxt*dyt product approximation calc_grid_metrics_kernel
+    # would give -- it's the more accurate figure and we already have it.
+    vs.area_t = pad(grid.area_t)
+
+    # area_u: U-points don't shift latitude relative to their T-neighbours
+    # (U_HOR=(xu,yt) -- same yt as T), so T's own dyt needs no cross-latitude
+    # correction to pair with dxu here.
+    vs.area_u = vs.dyt * vs.dxu
+
+    # area_v: V-points DO shift latitude relative to T (V_HOR=(xt,yu) sits at
+    # yu, not yt), so T's own dxt -- computed at T's latitude -- isn't quite
+    # the right i-width for a cell centred at V's (different) latitude.
+    # Approximate it the same way dxt itself was built (averaging over the
+    # two neighbours that straddle the point in question): average T(i,j)'s
+    # and T(i,j+1)'s dxt, which brackets the V-point's own latitude, rather
+    # than reusing T(i,j)'s dxt unchanged (verified in
+    # test/curvilinear_grid_test.py: this drops the legacy-reduction error
+    # for area_v from ~20% to sub-percent on a regular-grid fixture).
+    dxt_at_v = onp.empty_like(vs.dxt)
+    dxt_at_v[:, :-1] = 0.5 * (vs.dxt[:, :-1] + vs.dxt[:, 1:])
+    dxt_at_v[:, -1] = vs.dxt[:, -1]  # no j+1 neighbour at the last ghost row
+    vs.area_v = vs.dyu * dxt_at_v
+
+    """
+    grid in vertical direction -- independent of the horizontal grid choice
+    """
+    vs.dzw, vs.zt, vs.zw = calc_vertical_grid(vs.dzt, vs.dzw, vs.zt, vs.zw)
+
+
 @veros_routine
 def calc_grid(state):
     """
-    setup grid based on dxt,dyt,dzt and x_origin, y_origin
+    setup the horizontal grid: either analytically from dxt,dyt,dzt and
+    x_origin, y_origin (the legacy, regular/separable path), or from a SCRIP
+    file describing a locally-orthogonal curvilinear grid, depending on
+    settings.enable_curvilinear_grid.
     """
+    settings = state.settings
+
+    if settings.enable_curvilinear_grid:
+        calc_grid_scrip(state)
+        return
+
     calc_grid_spacings(state)
 
     vs = state.variables
@@ -165,13 +361,17 @@ def calc_beta(state):
     """
     vs = state.variables
     settings = state.settings
+    # dyu is now V_HOR-shaped (2D); slice its j-axis (axis 1) to match
+    # coriolis_t's j-slicing, not its i-axis (axis 0) -- on the legacy grid
+    # dyu is constant along i, so this reproduces the original 1D-broadcast
+    # division exactly.
     vs.beta = update(
         vs.beta,
         at[:, 2:-2],
         0.5
         * (
-            (vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[2:-2]
-            + (vs.coriolis_t[:, 2:-2] - vs.coriolis_t[:, 1:-3]) / vs.dyu[1:-3]
+            (vs.coriolis_t[:, 3:-1] - vs.coriolis_t[:, 2:-2]) / vs.dyu[:, 2:-2]
+            + (vs.coriolis_t[:, 2:-2] - vs.coriolis_t[:, 1:-3]) / vs.dyu[:, 1:-3]
         ),
     )
     vs.beta = utilities.enforce_boundaries(vs.beta, settings.enable_cyclic_x)
@@ -316,10 +516,10 @@ def ugrid_to_tgrid(state, a):
         a,
         at[2:-2, :, :],
         (
-            vs.dxu[2:-2, npx.newaxis, npx.newaxis] * a[2:-2, :, :]
-            + vs.dxu[1:-3, npx.newaxis, npx.newaxis] * a[1:-3, :, :]
+            vs.dxu[2:-2, :, npx.newaxis] * a[2:-2, :, :]
+            + vs.dxu[1:-3, :, npx.newaxis] * a[1:-3, :, :]
         )
-        / (2 * vs.dxt[2:-2, npx.newaxis, npx.newaxis]),
+        / (2 * vs.dxt[2:-2, :, npx.newaxis]),
     )
     return b
 
