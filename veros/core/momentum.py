@@ -328,4 +328,3 @@ def momentum(state):
             external.solve_pressure(state)
             detect_nan_in_state(state, header="solve_pressure")
     
-
