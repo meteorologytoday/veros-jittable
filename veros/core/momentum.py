@@ -5,6 +5,8 @@ from veros.variables import allocate
 from veros.core import friction, external
 from veros.core.operators import update, update_add, at
 
+from veros.debug_tools import detect_nan_in_state
+
 
 @veros_kernel
 def tend_coriolisf(state):
@@ -297,19 +299,23 @@ def momentum(state):
     time tendency due to Coriolis force
     """
     vs.update(tend_coriolisf(state))
+    detect_nan_in_state(state, header="tend_coriolisf")
 
     """
     wind stress forcing
     """
     vs.update(tend_tauxyf(state))
+    detect_nan_in_state(state, header="tend_tauxyf")
 
     """
     advection
     """
     vs.update(momentum_advection(state))
+    detect_nan_in_state(state, header="momentum_advection")
 
     with state.timers["friction"]:
         friction.friction(state)
+    detect_nan_in_state(state, header="friction")
 
     """
     external mode
@@ -317,5 +323,8 @@ def momentum(state):
     with state.timers["pressure"]:
         if state.settings.enable_streamfunction:
             external.solve_streamfunction(state)
+            detect_nan_in_state(state, header="solve_streamfunction")
         else:
             external.solve_pressure(state)
+            detect_nan_in_state(state, header="solve_pressure")
+    

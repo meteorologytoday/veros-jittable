@@ -20,14 +20,14 @@ def set_idemix_parameter(state):
 
     bN0 = (
         npx.sum(
-            npx.sqrt(npx.maximum(0.0, vs.Nsqr[:, :, :-1, vs.tau]))
+            utilities.sqrt_singularity_removed(vs.Nsqr[:, :, :-1, vs.tau])
             * vs.dzw[npx.newaxis, npx.newaxis, :-1]
             * vs.maskW[:, :, :-1],
             axis=2,
         )
-        + npx.sqrt(npx.maximum(0.0, vs.Nsqr[:, :, -1, vs.tau])) * 0.5 * vs.dzw[-1:] * vs.maskW[:, :, -1]
+        + utilities.sqrt_singularity_removed(vs.Nsqr[:, :, -1, vs.tau]) * 0.5 * vs.dzw[-1:] * vs.maskW[:, :, -1]
     )
-    fxa = npx.sqrt(npx.maximum(0.0, vs.Nsqr[..., vs.tau])) / (1e-22 + npx.abs(vs.coriolis_t[..., npx.newaxis]))
+    fxa = utilities.sqrt_singularity_removed(vs.Nsqr[..., vs.tau]) / (1e-22 + npx.abs(vs.coriolis_t[..., npx.newaxis]))
 
     cstar = npx.maximum(1e-2, bN0[:, :, npx.newaxis] / (settings.pi * settings.jstar))
 

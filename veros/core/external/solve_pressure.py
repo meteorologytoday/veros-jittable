@@ -15,6 +15,7 @@ from veros.core import utilities as mainutils
 from veros.core.operators import update, update_add, at, for_loop
 from veros.core.operators import numpy as npx
 from veros.core.external.solvers import get_linear_solver
+import jax
 
 @veros_routine
 def solve_pressure(state):
