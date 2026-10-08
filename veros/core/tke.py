@@ -17,6 +17,79 @@ def set_tke_diffusivities(state):
         vs.kappaH = npx.where(vs.Nsqr[..., vs.tau] < 0.0, 1.0, settings.kappaH_0)
 
 
+def _prandtl_from_richardson(richardson, clip=None):
+    """Prandtl number `6.6 * Ri` clipped to [1, 10]; rounded over `clip` when given."""
+    if clip is None:
+        return npx.maximum(1.0, npx.minimum(10.0, 6.6 * richardson))
+    return utilities.smooth_maximum(1.0, utilities.smooth_minimum(10.0, 6.6 * richardson, clip), clip)
+
+
+def prandtl_number(Nsqr, shear_squared, internal_wave_bound, shear_floor, clip_width):
+    """
+    The TKE closure's Prandtl number, with a derivative that resolves its switch.
+
+    The value is the reference formulation, `clip(6.6 * Ri, 1, 10)` with
+    `Ri = Nsqr / max(shear_squared, 1e-12)` (further bounded by the IDEMIX
+    term when IDEMIX is on). Where the water column has no shear -- an ocean
+    started from rest, or any quiescent column -- `Ri` is `Nsqr * 1e12`, so
+    the Prandtl number switches from 1 (convective) to 10 (stable) as `Nsqr`
+    crosses a window about 1e-12 s^-2 wide around zero. That switch is real,
+    but its derivative is ~1e12 inside the window and zero outside: a cell
+    whose stratification happens to fall in the window has a sensitivity
+    four or five orders of magnitude above its neighbours that no
+    perturbation larger than ~1e-4 K reproduces, and a multi-step adjoint
+    carries it along.
+
+    The same switch survives, less violently, wherever the shear is resolved
+    but weak. The ramp between the clips spans `Nsqr` from `shear_squared /
+    6.6` to `10 * shear_squared / 6.6`, so its slope is `6.6 / shear_squared`
+    and its width ~1.4 * `shear_squared`; with `shear_squared` ~1e-7 s^-2 (a
+    few mm/s of velocity difference across a 10 m layer, the shear of a
+    column that is barely moving) the whole 1-to-10 switch lies inside the
+    ~2e-6 s^-2 change in `Nsqr` that a 0.01 K surface perturbation makes. The
+    derivative there is the true local slope, but it holds only for
+    perturbations of ~1e-4 K, and it put isolated spikes 5-10 times the
+    finite-difference response into the adjoint of a global one-degree run.
+
+    The derivative is therefore taken from a surrogate
+    (`utilities.with_surrogate_gradient`, the construction of jax-gcm's
+    `jcm.physics.surrogate_gradient`): the same formula with the shear floor
+    raised smoothly to `shear_floor` and the clip rounded over `clip_width`.
+    Wherever the shear well exceeds `shear_floor` its slope is the
+    reference's to within the tails of the clip's hyperbolic rounding (under
+    1% mid-way between the corners for the default width); where the shear
+    is at or below the floor it spreads the switch over `0 < Nsqr < ~1.5 *
+    shear_floor`, so the slope never exceeds ~`6.6 / shear_floor`.
+    `shear_floor = 0` selects the reference derivative.
+
+    The default floor, 3e-7 s^-2, was chosen against finite differences of
+    0.01 K in a global one-degree run (24 hourly steps, a random-weighted
+    global SST objective): it brought the gradient at the spike cells to
+    within a factor ~2 of the 0.01 K response without moving the median or
+    the 99th percentile of the gradient. 1e-7 left the weak-shear spikes in
+    place, and 1e-6 or more flattened the slope below the 0.01 K response
+    (and flipped its sign in one cell): a larger floor discards real
+    sensitivity, not just the switch.
+    """
+
+    def exact(Nsqr, shear_squared, internal_wave_bound):
+        richardson = Nsqr / npx.maximum(shear_squared, 1e-12)
+        if internal_wave_bound is not None:
+            richardson = npx.minimum(richardson, internal_wave_bound)
+        return _prandtl_from_richardson(richardson)
+
+    if shear_floor <= 0:
+        return exact(Nsqr, shear_squared, internal_wave_bound)
+
+    def surrogate(Nsqr, shear_squared, internal_wave_bound):
+        richardson = Nsqr / utilities.smooth_maximum(shear_squared, shear_floor, shear_floor)
+        if internal_wave_bound is not None:
+            richardson = utilities.smooth_minimum(richardson, internal_wave_bound, clip_width / 6.6)
+        return _prandtl_from_richardson(richardson, clip_width)
+
+    return utilities.with_surrogate_gradient(exact, surrogate)(Nsqr, shear_squared, internal_wave_bound)
+
+
 @veros_kernel
 def set_tke_diffusivities_kernel(state):
     """
@@ -24,8 +97,6 @@ def set_tke_diffusivities_kernel(state):
     """
     vs = state.variables
     settings = state.settings
-
-    Rinumber = allocate(state.dimensions, ("xt", "yt", "zt"))
 
     vs.sqrttke = utilities.sqrt_singularity_removed(vs.tke[:, :, :, vs.tau])
     """
@@ -71,21 +142,22 @@ def set_tke_diffusivities_kernel(state):
     """
     vs.K_diss_v = utilities.enforce_boundaries(vs.K_diss_v, settings.enable_cyclic_x)
     vs.kappaM = update(vs.kappaM, at[...], npx.minimum(settings.kappaM_max, settings.c_k * vs.mxl * vs.sqrttke))
-    Rinumber = update(
-        Rinumber, at[...], vs.Nsqr[:, :, :, vs.tau] / npx.maximum(vs.K_diss_v / npx.maximum(1e-12, vs.kappaM), 1e-12)
-    )
+    shear_squared = vs.K_diss_v / npx.maximum(1e-12, vs.kappaM)
     if settings.enable_idemix:
-        Rinumber = update(
-            Rinumber,
-            at[...],
-            npx.minimum(
-                Rinumber,
-                vs.kappaM * vs.Nsqr[:, :, :, vs.tau] / npx.maximum(1e-12, vs.alpha_c * vs.E_iw[:, :, :, vs.tau] ** 2),
-            ),
+        internal_wave_bound = (
+            vs.kappaM * vs.Nsqr[:, :, :, vs.tau] / npx.maximum(1e-12, vs.alpha_c * vs.E_iw[:, :, :, vs.tau] ** 2)
         )
+    else:
+        internal_wave_bound = None
 
     if settings.enable_Prandtl_tke:
-        vs.Prandtlnumber = npx.maximum(1.0, npx.minimum(10, 6.6 * Rinumber))
+        vs.Prandtlnumber = prandtl_number(
+            vs.Nsqr[:, :, :, vs.tau],
+            shear_squared,
+            internal_wave_bound,
+            settings.tke_prandtl_surrogate_shear_floor,
+            settings.tke_prandtl_surrogate_width,
+        )
     else:
         vs.Prandtlnumber = update(vs.Prandtlnumber, at[...], settings.Prandtl_tke0)
 

@@ -83,6 +83,13 @@ SETTINGS = {
     # Options for isopycnal mixing
     "enable_neutral_diffusion": Setting(False, bool, "enable isopycnal mixing"),
     "enable_skew_diffusion": Setting(False, bool, "enable skew diffusion approach for eddy-driven velocities"),
+    "enable_isoneutral_tensor_derivative": Setting(
+        False,
+        bool,
+        "Differentiate the isoneutral slopes and diffusivities with respect to the model state (JAX backend). "
+        "Off by default: their value is unchanged, but their linearisation is not dissipative and makes "
+        "tangent-linear and adjoint runs unstable (see veros.core.isoneutral.isoneutral_diffusion_pre)",
+    ),
     "enable_TEM_friction": Setting(False, bool, "TEM approach for eddy-driven velocities"),
     "K_iso_0": Setting(0.0, float, "constant for isopycnal diffusivity in m^2/s"),
     "K_iso_steep": Setting(0.0, float, "lateral diffusivity for steep slopes in m^2/s"),
@@ -147,6 +154,19 @@ SETTINGS = {
     "enable_Prandtl_tke": Setting(True, bool, "Compute Prandtl number from stratification levels in TKE routine"),
     "Prandtl_tke0": Setting(
         10.0, float, "Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine"
+    ),
+    "tke_prandtl_surrogate_shear_floor": Setting(
+        3e-7,
+        float,
+        "Shear-squared scale (s^-2) below which the derivative of the TKE Prandtl number treats the shear as "
+        "this value (the value of the Prandtl number is unchanged; see veros.core.tke.prandtl_number for how "
+        "the default was chosen). 0 selects the reference derivative",
+    ),
+    "tke_prandtl_surrogate_width": Setting(
+        0.5,
+        float,
+        "Width over which the derivative of the TKE Prandtl number rounds its clip to [1, 10] "
+        "(the value is unchanged; see veros.core.tke.prandtl_number)",
     ),
     # Debugging
     "enable_nan_checks": Setting(
