@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-Setting = namedtuple("setting", ("default", "type", "description"))
+Setting = namedtuple("setting", ("default", "type", "description", "affects_tracing"), defaults=(True,))
 
 
 def optional(type_):
@@ -16,8 +16,8 @@ def optional(type_):
 PI = 3.14159265358979323846264338327950588
 
 SETTINGS = {
-    "identifier": Setting("UNNAMED", str, "Identifier of the current simulation"),
-    "description": Setting("", str, "Description of the current simulation"),
+    "identifier": Setting("UNNAMED", str, "Identifier of the current simulation", affects_tracing=False),
+    "description": Setting("", str, "Description of the current simulation", affects_tracing=False),
     # Model parameters
     "nx": Setting(0, int, "Grid points in zonal (x) direction"),
     "ny": Setting(0, int, "Grid points in meridional (y,j) direction"),
@@ -129,14 +129,16 @@ SETTINGS = {
     "enable_eke_isopycnal_diffusion": Setting(False, bool, "use K_gm also for isopycnal diffusivity"),
     # Restarts
     "restart_input_filename": Setting(
-        None, optional(str), "File name of restart input. If not given, no restart data will be read."
+        None, optional(str), "File name of restart input. If not given, no restart data will be read.",
+        affects_tracing=False,
     ),
     "restart_output_filename": Setting(
         "{identifier}_{itt:0>4d}.restart.h5",
         optional(str),
         "File name of restart output. May contain Python format syntax that is substituted with Veros attributes.",
+        affects_tracing=False,
     ),
-    "restart_frequency": Setting(0, float, "Frequency (in seconds) to write restart data"),
+    "restart_frequency": Setting(0, float, "Frequency (in seconds) to write restart data", affects_tracing=False),
     # New
     "kappaH_min": Setting(0.0, float, "minimum value for vertical diffusivity"),
     "enable_kappaH_profile": Setting(
@@ -145,6 +147,10 @@ SETTINGS = {
     "enable_Prandtl_tke": Setting(True, bool, "Compute Prandtl number from stratification levels in TKE routine"),
     "Prandtl_tke0": Setting(
         10.0, float, "Constant Prandtl number when stratification is neglected for kappaH computation in TKE routine"
+    ),
+    # Debugging
+    "enable_nan_checks": Setting(
+        False, bool, "Scan state for NaN/Inf values at debug checkpoints sprinkled through the model (slow; see veros.debug_tools.detect_nan_in_state)"
     ),
 }
 

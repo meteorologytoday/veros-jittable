@@ -27,11 +27,11 @@ def set_tke_diffusivities_kernel(state):
 
     Rinumber = allocate(state.dimensions, ("xt", "yt", "zt"))
 
-    vs.sqrttke = npx.sqrt(npx.maximum(0.0, vs.tke[:, :, :, vs.tau]))
+    vs.sqrttke = utilities.sqrt_singularity_removed(vs.tke[:, :, :, vs.tau])
     """
     calculate buoyancy length scale
     """
-    vs.mxl = npx.sqrt(2) * vs.sqrttke / npx.sqrt(npx.maximum(1e-12, vs.Nsqr[:, :, :, vs.tau])) * vs.maskW
+    vs.mxl = npx.sqrt(2) * vs.sqrttke / utilities.sqrt_singularity_removed(vs.Nsqr[:, :, :, vs.tau]) * vs.maskW
 
     """
     apply limits for mixing length
@@ -226,6 +226,23 @@ def integrate_tke_kernel(state):
 
     sol = utilities.solve_implicit(a_tri, b_tri, c_tri, d_tri, water_mask, b_edge=b_tri_edge, edge_mask=edge_mask)
     vs.tke = update(vs.tke, at[2:-2, 2:-2, :, vs.taup1], npx.where(water_mask, sol, vs.tke[2:-2, 2:-2, :, vs.taup1]))
+
+    """
+    Clamp sub-surface levels to non-negative, extending to depth the same
+    floor already applied at the surface below (via tke_surf_corr). The
+    implicit solve can leave small negative numerical-undershoot values at
+    depth (observed ~-1e-7 against typical tke magnitudes of ~1e-4) -- a
+    well-known artifact of implicit discretizations of nominally-positive
+    quantities, and negligible for the forward solution. Left unclamped,
+    these values reach sqrt_singularity_removed via vs.tke[..., vs.tau] on
+    the following step and produce NaN tangents under jax.jvp, since sqrt's
+    derivative blows up at/near zero.
+    """
+    vs.tke = update(
+        vs.tke,
+        at[2:-2, 2:-2, :-1, vs.taup1],
+        npx.maximum(0.0, vs.tke[2:-2, 2:-2, :-1, vs.taup1]),
+    )
 
     """
     store tke dissipation for diagnostics

@@ -464,9 +464,13 @@ def get_default_state(plugin_interfaces=()):
 def veros_state_pytree_flatten(state):
     aux_data = tuple((k, v) for k, v in vars(state).items() if k != "_variables")
 
-    # ensure that functions are re-traced when settings change
+    # ensure that functions are re-traced when settings change;
+    # exclude I/O-only settings (affects_tracing=False) to avoid spurious retracing
     with state.settings.unlock():
-        pseudo_hash = hash(tuple(state.settings.items()))
+        pseudo_hash = hash(tuple(
+            (k, v) for k, v in state.settings.items()
+            if state.settings.__metadata__[k].affects_tracing
+        ))
 
     return ([state.variables], (aux_data, pseudo_hash))
 
